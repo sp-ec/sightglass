@@ -7,3 +7,5 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+
+.env
