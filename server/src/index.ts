@@ -1,15 +1,23 @@
 import "dotenv/config";
 import express, { Request, Response } from 'express';
+import gameListRoutes from "./modules/gameList/gameListRoutes";
+import { initializeDatabase } from "./config/db";
 
 const app = express();
 const port = process.env.PORT || 3001;
 
 app.use(express.json());
 
-app.get('/', (req: Request, res: Response) => {
-  res.json({ message: 'TypeScript backend is running successfully!' });
-});
+// Routes
+app.use("/gamelist", gameListRoutes);
 
-app.listen(port, () => {
-  console.log(`Server is running at http://localhost:${port}`);
-});
+const startServer = async () => {
+	// Ensure the database schema exists before accepting HTTP requests
+	await initializeDatabase();
+
+	app.listen(port, () => {
+		console.log(`Server running on port ${port}`);
+	});
+};
+
+startServer();
