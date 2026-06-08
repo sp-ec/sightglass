@@ -14,8 +14,20 @@ export const initializeDatabase = async (): Promise<void> => {
     CREATE TABLE IF NOT EXISTS games (
       app_id VARCHAR(255) PRIMARY KEY UNIQUE NOT NULL,
       name VARCHAR(255) NOT NULL,
-      last_modified TIMESTAMP
+      last_updated TIMESTAMP,
+      tags JSONB,
+      developer VARCHAR(255),
+      publisher VARCHAR(255),
+      rating_positive INT,
+      rating_negative INT,
+      price decimal(10, 2),
+      ccu INT,
+      owners_min INT,
+      owners_max INT,
+      languages TEXT[],
+      genre VARCHAR(255)
     );
+    CREATE INDEX IF NOT EXISTS idx_games_tags_jsonb ON games USING GIN (tags);
   `;
 
   try {

@@ -1,5 +1,6 @@
 import axios from 'axios';
-import { upsertGames, type GameRecord } from './gameListRepository';
+import { upsertGameTitles } from '@/modules/gameList/titles/gameListTitleRepository';
+import { GameTitle } from '../gameListTypes';
 
 const steamAppListUrl = 'https://api.steampowered.com/IStoreService/GetAppList/v1';
 const maxResults = 50000;
@@ -51,18 +52,18 @@ const fetchAllGamesFromApi = async () => {
   return games;
 };
 
-export const processInitialSync = async () => {
-  const steamApps = await fetchAllGamesFromApi();
-  const games: GameRecord[] = steamApps.map((app) => ({
-    app_id: app.appid,
-    name: app.name,
-    last_modified: app.last_modified,
-  }));
+export const processTitleSync = async () => {
+	const steamApps = await fetchAllGamesFromApi();
+	const games: GameTitle[] = steamApps.map((app) => ({
+		app_id: app.appid,
+		name: app.name,
+		last_modified: app.last_modified,
+	}));
 
-  const result = await upsertGames(games);
+	const result = await upsertGameTitles(games);
 
-  return {
-    fetchedCount: steamApps.length,
-    processedCount: result.processedCount,
-  };
+	return {
+		fetchedCount: steamApps.length,
+		processedCount: result.processedCount,
+	};
 };
