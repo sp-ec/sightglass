@@ -13,9 +13,9 @@ export const initializeDatabase = async (): Promise<void> => {
   const createGamesTableQuery = `
     CREATE TABLE IF NOT EXISTS games (
       app_id VARCHAR(255) PRIMARY KEY UNIQUE NOT NULL,
-      name VARCHAR(255) NOT NULL,
+      name VARCHAR(255),
       last_updated TIMESTAMP,
-      tags JSONB,
+      tags TEXT[],
       developer VARCHAR(255),
       publisher VARCHAR(255),
       rating_positive INT,
@@ -27,11 +27,17 @@ export const initializeDatabase = async (): Promise<void> => {
       languages TEXT[],
       genre VARCHAR(255)
     );
-    CREATE INDEX IF NOT EXISTS idx_games_tags_jsonb ON games USING GIN (tags);
+  `;
+  const createTagsTableQuery = `
+    CREATE TABLE IF NOT EXISTS tags (
+      tag VARCHAR(255) PRIMARY KEY UNIQUE NOT NULL,
+      last_updated TIMESTAMP NOT NULL DEFAULT NOW()
+    );
   `;
 
   try {
     await pool.query(createGamesTableQuery);
+    await pool.query(createTagsTableQuery);
     console.log('Database initialization complete: Tables verified.');
   } catch (error) {
     console.error('Database initialization failed:', error);

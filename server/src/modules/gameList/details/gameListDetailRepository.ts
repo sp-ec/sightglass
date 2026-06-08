@@ -12,8 +12,8 @@ function toDecimal(num: number): number {
     return num / 100;
 }
 
-function serializeTags(tags: Record<string, number>): string {
-    return JSON.stringify(tags);
+function serializeTags(tags: Record<string, number>): string[] {
+    return Object.keys(tags);
 }
 
 export const upsertGameDetails = async (games: GameDetails[]) => {
