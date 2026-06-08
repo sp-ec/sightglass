@@ -1,0 +1,23 @@
+info:
+  name: Sync Game Tags
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{api_url}}/gamelist/sync-tags?active=true"
+  params:
+    - name: active
+      value: "true"
+      type: query
+    - name: active
+      value: "false"
+      type: query
+      disabled: true
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,19 @@
+info:
+  name: Get App List
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: https://api.steampowered.com/IStoreService/GetAppList/v1?key=7D730989D35708DC0AD3BCCDB01B0724
+  params:
+    - name: key
+      value: 7D730989D35708DC0AD3BCCDB01B0724
+      type: query
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
