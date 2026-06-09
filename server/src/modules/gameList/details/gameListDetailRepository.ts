@@ -1,19 +1,19 @@
-import pool from "@/config/db";
+import pool from "@/sql/db";
 import { GameDetails } from "../gameListTypes";
 
 function parseRange(rangeStr: string): [number, number] {
-    const parts = rangeStr.split(" .. ");
-    const min = parseInt(parts[0].replace(/,/g, ""), 10);
-    const max = parseInt(parts[1].replace(/,/g, ""), 10);
-    return [min, max];
+	const parts = rangeStr.split(" .. ");
+	const min = parseInt(parts[0].replace(/,/g, ""), 10);
+	const max = parseInt(parts[1].replace(/,/g, ""), 10);
+	return [min, max];
 }
 
 function toDecimal(num: number): number {
-    return num / 100;
+	return num / 100;
 }
 
 function serializeTags(tags: Record<string, number>): string[] {
-    return Object.keys(tags);
+	return Object.keys(tags);
 }
 
 export const upsertGameDetails = async (games: GameDetails[]) => {

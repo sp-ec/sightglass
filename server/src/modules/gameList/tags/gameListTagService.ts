@@ -1,5 +1,5 @@
 import axios from 'axios';
-import pool from '@/config/db';
+import pool from "@/sql/db";
 import * as cheerio from 'cheerio';
 import { getTags, upsertGamesByTag, upsertTags } from './gameListTagRepository';
 

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import pool from '@/config/db';
+import pool from "@/sql/db";
 import { type GameDetails } from '../gameListTypes';
 import { upsertGameDetails } from '@/modules/gameList/details/gameListDetailRepository';
 

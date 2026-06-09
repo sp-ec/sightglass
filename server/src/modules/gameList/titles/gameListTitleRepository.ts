@@ -1,4 +1,4 @@
-import pool from "@/config/db";
+import pool from "@/sql/db";
 import { type GameTitle } from "../gameListTypes";
 
 export const upsertGameTitles = async (games: GameTitle[]) => {
@@ -23,10 +23,7 @@ export const upsertGameTitles = async (games: GameTitle[]) => {
 			})
 			.join(", ");
 
-		const params = chunk.flatMap((game) => [
-			game.app_id,
-			game.name,
-		]);
+		const params = chunk.flatMap((game) => [game.app_id, game.name]);
 
 		const result = await pool.query(
 			`

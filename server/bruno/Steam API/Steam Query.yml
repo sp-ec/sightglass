@@ -39,7 +39,7 @@ http:
           "include_tag_count": true,
           "include_release": true,
           "include_assets": true,
-          "include_all_purchase_options": true,
+          "include_all_purchase_options": false,
           "include_supported_languages": true,
           "include_platforms": true
         }

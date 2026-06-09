@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express, { Request, Response } from 'express';
 import gameListRoutes from "./modules/gameList/gameListRoutes";
-import { initializeDatabase } from "./config/db";
+import { initializeDatabase } from "./sql/db";
 
 const app = express();
 const port = process.env.PORT || 3001;
