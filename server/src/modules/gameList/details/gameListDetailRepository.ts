@@ -1,101 +1,317 @@
 import pool from "@/sql/db";
-import { GameDetails } from "../gameListTypes";
 
-function parseRange(rangeStr: string): [number, number] {
-	const parts = rangeStr.split(" .. ");
-	const min = parseInt(parts[0].replace(/,/g, ""), 10);
-	const max = parseInt(parts[1].replace(/,/g, ""), 10);
-	return [min, max];
-}
+const CHUNK_SIZE = 500;
 
-function toDecimal(num: number): number {
-	return num / 100;
-}
+const unixToTimestamp = (value: number | null | undefined) =>
+	value == null ? null : new Date(value * 1000);
 
-function serializeTags(tags: Record<string, number>): string[] {
-	return Object.keys(tags);
-}
+const chunkArray = <T>(array: T[], size: number): T[][] => {
+	const chunks = [];
+	for (let i = 0; i < array.length; i += size) {
+		chunks.push(array.slice(i, i + size));
+	}
+	return chunks;
+};
 
-export const upsertGameDetails = async (games: GameDetails[]) => {
-	const gamesArray = Object.values(games);
+const bulkUpsert = async (
+	table: string,
+	columns: string[],
+	data: any[][],
+	conflictClause: string,
+) => {
+	if (data.length === 0) return [];
 
-	if (gamesArray.length === 0) {
-		return { processedCount: 0 };
+	const values: string[] = [];
+	const flatParams: any[] = [];
+	let paramIdx = 1;
+
+	for (const row of data) {
+		const rowTokens: string[] = [];
+		for (const val of row) {
+			rowTokens.push(`$${paramIdx++}`);
+			flatParams.push(val);
+		}
+		values.push(`(${rowTokens.join(", ")})`);
 	}
 
-	//chunk the upsert to avoid hitting parameter limits, allowing for any input size
-	let processedCount = 0;
-	const CHUNK_SIZE = 2000;
+	const query = `INSERT INTO ${table} (${columns.join(", ")}) VALUES ${values.join(", ")} ${conflictClause}`;
+	const res = await pool.query(query, flatParams);
+	return res.rows;
+};
 
-	for (let i = 0; i < gamesArray.length; i += CHUNK_SIZE) {
-		const chunk = gamesArray.slice(i, i + CHUNK_SIZE);
-		const paramCount = 14;
-		const values = chunk
-			.map((_, index) => {
-				const appIdParam = index * paramCount + 1;
-				const nameParam = index * paramCount + 2;
-				const developerParam = index * paramCount + 3;
-				const publisherParam = index * paramCount + 4;
-				const positiveParam = index * paramCount + 5;
-				const negativeParam = index * paramCount + 6;
-				const ownersMinParam = index * paramCount + 7;
-				const ownersMaxParam = index * paramCount + 8;
-				const priceParam = index * paramCount + 9;
-				const ccuParam = index * paramCount + 10;
-				const tagsParam = index * paramCount + 11;
-				const genreParam = index * paramCount + 12;
-				const languagesParam = index * paramCount + 13;
-				const lastUpdatedParam = index * paramCount + 14;
-
-				return `($${appIdParam}, $${nameParam}, $${developerParam}, $${publisherParam}, $${positiveParam}, $${negativeParam}, $${ownersMinParam}, $${ownersMaxParam}, $${priceParam}, $${ccuParam}, $${tagsParam}, $${genreParam}, $${languagesParam}, $${lastUpdatedParam})`;
-			})
-			.join(", ");
-
-		const [owners_min, owners_max] = parseRange(chunk[0].owners);
-
-		const params = chunk.flatMap((game) => [
-			game.app_id,
-			game.name,
-			game.developer,
-			game.publisher,
-			game.positive,
-			game.negative,
-			owners_min,
-			owners_max,
-			toDecimal(game.price),
-			game.ccu,
-			serializeTags(game.tags),
-			game.genre,
-			game.languages.split(", "),
-			new Date(),
+const cleanUpRelations = async (
+	table: string,
+	gameIds: number[],
+	columns: string[],
+	validTuples: any[][],
+) => {
+	if (gameIds.length === 0) return;
+	if (validTuples.length === 0) {
+		await pool.query(`DELETE FROM ${table} WHERE game_id = ANY($1::int[])`, [
+			gameIds,
 		]);
+		return;
+	}
 
-		const result = await pool.query(
-			`
-		INSERT INTO games (app_id, name, developer, publisher, rating_positive, rating_negative, owners_min, owners_max, price, ccu, tags, genre, languages, last_updated)
-		VALUES ${values}
-		ON CONFLICT (app_id) DO UPDATE
-		SET name = excluded.name,
-			developer = excluded.developer,
-			publisher = excluded.publisher,
-			rating_positive = excluded.rating_positive,
-			rating_negative = excluded.rating_negative,
-			owners_min = excluded.owners_min,
-			owners_max = excluded.owners_max,
-			price = excluded.price,
-			ccu = excluded.ccu,
-			tags = excluded.tags,
-			genre = excluded.genre,
-			languages = excluded.languages,
-			last_updated = excluded.last_updated
-			`,
-			params,
+	// Pivot validTuples into parallel arrays to avoid AST stack depth limits
+	const numColumns = validTuples[0].length;
+	const parallelArrays: any[][] = Array.from({ length: numColumns }, () => []);
+
+	for (const tuple of validTuples) {
+		for (let i = 0; i < numColumns; i++) {
+			parallelArrays[i].push(tuple[i]);
+		}
+	}
+
+	// $1 is gameIds. Parallel arrays start at $2.
+	const params = [gameIds, ...parallelArrays];
+	const unnestArgs = parallelArrays
+		.map((_, i) => `$${i + 2}::text[]`)
+		.join(", ");
+	const unnestAliases = ["keep_game_id", ...columns].join(", ");
+
+	const matchConditions = [
+		`${table}.game_id = (k.keep_game_id)::int`,
+		...columns.map((c) => `${table}.${c}::text = k.${c}`),
+	].join(" AND ");
+
+	const query = `
+    DELETE FROM ${table}
+    WHERE game_id = ANY($1::int[])
+    AND NOT EXISTS (
+      SELECT 1 FROM unnest(${unnestArgs}) AS k(${unnestAliases})
+      WHERE ${matchConditions}
+    )
+  `;
+
+	await pool.query(query, params);
+};
+
+export const saveSteamGames = async (storeItems: any[]) => {
+	const chunks = chunkArray(storeItems, CHUNK_SIZE);
+
+	for (const chunk of chunks) {
+		const gamesMap = new Map<number, any[]>();
+		const uniqueDevs = new Set<string>();
+		const uniquePubs = new Set<string>();
+
+		for (const item of chunk) {
+			const appId = item.appid ?? item.id;
+			const reviewSummary = item.reviews?.summary_filtered ?? null;
+
+			gamesMap.set(appId, [
+				appId,
+				item.name ?? null,
+				item.type ?? null,
+				item.store_url_path ?? null,
+				unixToTimestamp(item.release?.steam_release_date),
+				item.best_purchase_option?.original_price_in_cents ??
+					item.best_purchase_option?.final_price_in_cents ??
+					0,
+				item.basic_info?.short_description ?? null,
+				reviewSummary?.review_score_label ?? null,
+				reviewSummary?.review_score != null
+					? String(reviewSummary.review_score)
+					: null,
+				new Date(),
+			]);
+
+			for (const dev of item.basic_info?.developers ?? []) {
+				if (dev.name) uniqueDevs.add(dev.name);
+			}
+			for (const pub of item.basic_info?.publishers ?? []) {
+				if (pub.name) uniquePubs.add(pub.name);
+			}
+		}
+
+		const gamesData = Array.from(gamesMap.values());
+		const gameIds = gamesData.map((row) => row[0]);
+
+		await bulkUpsert(
+			"games",
+			[
+				"app_id",
+				"name",
+				"type",
+				"store_url_path",
+				"steam_release_date",
+				"price_in_cents",
+				"short_description",
+				"rating_type",
+				"rating",
+				"last_updated",
+			],
+			gamesData,
+			`ON CONFLICT (app_id) DO UPDATE SET
+        name = EXCLUDED.name,
+        type = EXCLUDED.type,
+        store_url_path = EXCLUDED.store_url_path,
+        steam_release_date = EXCLUDED.steam_release_date,
+        price_in_cents = EXCLUDED.price_in_cents,
+        short_description = EXCLUDED.short_description,
+        rating_type = EXCLUDED.rating_type,
+        rating = EXCLUDED.rating,
+        last_updated = EXCLUDED.last_updated`,
 		);
 
-		processedCount += result.rowCount ?? 0;
+		const devMap = new Map<string, number>();
+		if (uniqueDevs.size > 0) {
+			const devRows = await bulkUpsert(
+				"developers",
+				["name"],
+				Array.from(uniqueDevs).map((name) => [name]),
+				"ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id, name",
+			);
+			for (const row of devRows) devMap.set(row.name, row.id);
+		}
+
+		const pubMap = new Map<string, number>();
+		if (uniquePubs.size > 0) {
+			const pubRows = await bulkUpsert(
+				"publishers",
+				["name"],
+				Array.from(uniquePubs).map((name) => [name]),
+				"ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id, name",
+			);
+			for (const row of pubRows) pubMap.set(row.name, row.id);
+		}
+
+		const devPairsMap = new Map<string, any[]>();
+		const pubPairsMap = new Map<string, any[]>();
+		const tagPairsMap = new Map<string, any[]>();
+		const categoryPairsMap = new Map<string, any[]>();
+		const languagePairsMap = new Map<string, any[]>();
+
+		for (const item of chunk) {
+			const appId = item.appid ?? item.id;
+
+			for (const dev of item.basic_info?.developers ?? []) {
+				if (dev.name && devMap.has(dev.name)) {
+					devPairsMap.set(`${appId}_${devMap.get(dev.name)}`, [
+						appId,
+						devMap.get(dev.name),
+					]);
+				}
+			}
+
+			for (const pub of item.basic_info?.publishers ?? []) {
+				if (pub.name && pubMap.has(pub.name)) {
+					pubPairsMap.set(`${appId}_${pubMap.get(pub.name)}`, [
+						appId,
+						pubMap.get(pub.name),
+					]);
+				}
+			}
+
+			for (const tag of item.tags ?? []) {
+				tagPairsMap.set(`${appId}_${tag.tagid}`, [
+					appId,
+					tag.tagid,
+					tag.weight ?? null,
+				]);
+			}
+
+			for (const categoryId of item.categories?.supported_player_categoryids ??
+				[]) {
+				categoryPairsMap.set(`${appId}_${categoryId}_supported_player`, [
+					appId,
+					categoryId,
+					"supported_player",
+				]);
+			}
+			for (const categoryId of item.categories?.feature_categoryids ?? []) {
+				categoryPairsMap.set(`${appId}_${categoryId}_feature`, [
+					appId,
+					categoryId,
+					"feature",
+				]);
+			}
+
+			for (const lang of item.supported_languages ?? []) {
+				languagePairsMap.set(`${appId}_${lang.elanguage}`, [
+					appId,
+					lang.elanguage,
+					lang.eadditionallanguage ?? null,
+					lang.supported ?? null,
+					lang.full_audio ?? null,
+					lang.subtitles ?? null,
+				]);
+			}
+		}
+
+		const devPairs = Array.from(devPairsMap.values());
+		const pubPairs = Array.from(pubPairsMap.values());
+		const tagPairs = Array.from(tagPairsMap.values());
+		const categoryPairs = Array.from(categoryPairsMap.values());
+		const languagePairs = Array.from(languagePairsMap.values());
+
+		await bulkUpsert(
+			"game_developers",
+			["game_id", "developer_id"],
+			devPairs,
+			"ON CONFLICT DO NOTHING",
+		);
+		await bulkUpsert(
+			"game_publishers",
+			["game_id", "publisher_id"],
+			pubPairs,
+			"ON CONFLICT DO NOTHING",
+		);
+		await bulkUpsert(
+			"game_tags",
+			["game_id", "tag_id", "weight"],
+			tagPairs,
+			"ON CONFLICT (game_id, tag_id) DO UPDATE SET weight = EXCLUDED.weight",
+		);
+		await bulkUpsert(
+			"game_categories",
+			["game_id", "category_id", "category_type"],
+			categoryPairs,
+			"ON CONFLICT DO NOTHING",
+		);
+		await bulkUpsert(
+			"game_supported_languages",
+			[
+				"game_id",
+				"elanguage",
+				"eadditionallanguage",
+				"supported",
+				"full_audio",
+				"subtitles",
+			],
+			languagePairs,
+			"ON CONFLICT (game_id, elanguage) DO UPDATE SET eadditionallanguage = EXCLUDED.eadditionallanguage, supported = EXCLUDED.supported, full_audio = EXCLUDED.full_audio, subtitles = EXCLUDED.subtitles",
+		);
+
+		await cleanUpRelations(
+			"game_developers",
+			gameIds,
+			["developer_id"],
+			devPairs,
+		);
+		await cleanUpRelations(
+			"game_publishers",
+			gameIds,
+			["publisher_id"],
+			pubPairs,
+		);
+		await cleanUpRelations(
+			"game_tags",
+			gameIds,
+			["tag_id"],
+			tagPairs.map((t) => [t[0], t[1]]),
+		);
+		await cleanUpRelations(
+			"game_categories",
+			gameIds,
+			["category_id", "category_type"],
+			categoryPairs,
+		);
+		await cleanUpRelations(
+			"game_supported_languages",
+			gameIds,
+			["elanguage"],
+			languagePairs.map((l) => [l[0], l[1]]),
+		);
 	}
-
-	console.log("Upserted game details:", processedCount);
-
-	return { processedCount };
 };

@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS games (
     price_in_cents INTEGER,
     short_description TEXT,
     rating_type VARCHAR(50),
-    rating VARCHAR(10)
+    rating VARCHAR(10),
+    last_updated TIMESTAMP
 ) ;
 
 CREATE TABLE IF NOT EXISTS developers (

@@ -17,7 +17,7 @@ http:
         "key": "7D730989D35708DC0AD3BCCDB01B0724",
         "query": {
           "filters": {
-            "released_only": true,
+            "released_only": false,
             "type_filters": {
               "include_games": true,
               "include_packages": false,
@@ -26,7 +26,9 @@ http:
               "include_demos": false
             }
           },
-          "count": 1000
+          "count": 1,
+          "sort": 2,
+          "start": 50000
         },
         "context": {
           "language": "english",
@@ -39,7 +41,6 @@ http:
           "include_tag_count": true,
           "include_release": true,
           "include_assets": true,
-          "include_all_purchase_options": false,
           "include_supported_languages": true,
           "include_platforms": true
         }
