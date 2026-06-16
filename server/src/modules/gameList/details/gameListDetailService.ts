@@ -40,7 +40,7 @@ const runDetailSync = async () => {
 			break;
 		}
 
-		console.log(`Fetched games: ${start} ... ${storeItems.length}`);
+		console.log(`Fetched games: ${start} ... ${storeItems.length + start}`);
 		await saveSteamGames(storeItems);
 
 		if (storeItems.length < BATCH_SIZE) {

@@ -1,43 +1,7 @@
 import pool from "@/sql/db";
+import { bulkUpsert, unixToTimestamp, chunkArray } from "@/sql/dbUtils";
 
 const CHUNK_SIZE = 500;
-
-const unixToTimestamp = (value: number | null | undefined) =>
-	value == null ? null : new Date(value * 1000);
-
-const chunkArray = <T>(array: T[], size: number): T[][] => {
-	const chunks = [];
-	for (let i = 0; i < array.length; i += size) {
-		chunks.push(array.slice(i, i + size));
-	}
-	return chunks;
-};
-
-const bulkUpsert = async (
-	table: string,
-	columns: string[],
-	data: any[][],
-	conflictClause: string,
-) => {
-	if (data.length === 0) return [];
-
-	const values: string[] = [];
-	const flatParams: any[] = [];
-	let paramIdx = 1;
-
-	for (const row of data) {
-		const rowTokens: string[] = [];
-		for (const val of row) {
-			rowTokens.push(`$${paramIdx++}`);
-			flatParams.push(val);
-		}
-		values.push(`(${rowTokens.join(", ")})`);
-	}
-
-	const query = `INSERT INTO ${table} (${columns.join(", ")}) VALUES ${values.join(", ")} ${conflictClause}`;
-	const res = await pool.query(query, flatParams);
-	return res.rows;
-};
 
 const cleanUpRelations = async (
 	table: string,
@@ -92,12 +56,22 @@ export const saveSteamGames = async (storeItems: any[]) => {
 
 	for (const chunk of chunks) {
 		const gamesMap = new Map<number, any[]>();
+		const reviewsMap = new Map<number, any[]>();
+		const assetsMap = new Map<number, any[]>();
+		const platformsMap = new Map<number, any[]>();
 		const uniqueDevs = new Set<string>();
 		const uniquePubs = new Set<string>();
 
 		for (const item of chunk) {
 			const appId = item.appid ?? item.id;
-			const reviewSummary = item.reviews?.summary_filtered ?? null;
+			const gameRating = item.game_rating ?? null;
+			const bestPurchaseOption = item.best_purchase_option ?? null;
+			const reviewSummary =
+				item.reviews?.summary_filtered ??
+				item.reviews?.summary_language_specific ??
+				null;
+			const assets = item.assets ?? null;
+			const platforms = item.platforms ?? null;
 
 			gamesMap.set(appId, [
 				appId,
@@ -105,15 +79,43 @@ export const saveSteamGames = async (storeItems: any[]) => {
 				item.type ?? null,
 				item.store_url_path ?? null,
 				unixToTimestamp(item.release?.steam_release_date),
-				item.best_purchase_option?.original_price_in_cents ??
-					item.best_purchase_option?.final_price_in_cents ??
+				bestPurchaseOption?.original_price_in_cents ??
+					bestPurchaseOption?.final_price_in_cents ??
 					0,
 				item.basic_info?.short_description ?? null,
-				reviewSummary?.review_score_label ?? null,
-				reviewSummary?.review_score != null
-					? String(reviewSummary.review_score)
-					: null,
+				gameRating?.type ?? null,
+				gameRating?.rating ?? null,
 				new Date(),
+			]);
+
+			reviewsMap.set(appId, [
+				appId,
+				reviewSummary?.review_count ?? null,
+				reviewSummary?.percent_positive ?? null,
+				reviewSummary?.review_score ?? null,
+				reviewSummary?.review_score_label ?? null,
+			]);
+
+			assetsMap.set(appId, [
+				appId,
+				assets?.asset_url_format ?? null,
+				assets?.main_capsule ?? null,
+				assets?.small_capsule ?? null,
+				assets?.header ?? null,
+				assets?.page_background_path ?? null,
+				assets?.hero_capsule ?? null,
+				assets?.library_capsule ?? null,
+				assets?.library_hero ?? null,
+				assets?.community_icon ?? null,
+			]);
+
+			platformsMap.set(appId, [
+				appId,
+				platforms?.windows ?? false,
+				platforms?.mac ?? false,
+				platforms?.steamos_linux ?? false,
+				platforms?.steam_deck_compat_category ?? null,
+				platforms?.steam_os_compat_category ?? null,
 			]);
 
 			for (const dev of item.basic_info?.developers ?? []) {
@@ -125,6 +127,9 @@ export const saveSteamGames = async (storeItems: any[]) => {
 		}
 
 		const gamesData = Array.from(gamesMap.values());
+		const reviewsData = Array.from(reviewsMap.values());
+		const assetsData = Array.from(assetsMap.values());
+		const platformsData = Array.from(platformsMap.values());
 		const gameIds = gamesData.map((row) => row[0]);
 
 		await bulkUpsert(
@@ -143,15 +148,78 @@ export const saveSteamGames = async (storeItems: any[]) => {
 			],
 			gamesData,
 			`ON CONFLICT (app_id) DO UPDATE SET
-        name = EXCLUDED.name,
-        type = EXCLUDED.type,
-        store_url_path = EXCLUDED.store_url_path,
-        steam_release_date = EXCLUDED.steam_release_date,
-        price_in_cents = EXCLUDED.price_in_cents,
-        short_description = EXCLUDED.short_description,
-        rating_type = EXCLUDED.rating_type,
-        rating = EXCLUDED.rating,
-        last_updated = EXCLUDED.last_updated`,
+			name = EXCLUDED.name,
+			type = EXCLUDED.type,
+			store_url_path = EXCLUDED.store_url_path,
+			steam_release_date = EXCLUDED.steam_release_date,
+			price_in_cents = EXCLUDED.price_in_cents,
+			short_description = EXCLUDED.short_description,
+			rating_type = EXCLUDED.rating_type,
+			rating = EXCLUDED.rating,
+			last_updated = EXCLUDED.last_updated`,
+		);
+
+		await bulkUpsert(
+			"game_reviews_summary",
+			[
+				"game_id",
+				"review_count",
+				"percent_positive",
+				"review_score",
+				"review_score_label",
+			],
+			reviewsData,
+			`ON CONFLICT (game_id) DO UPDATE SET 
+			review_count = EXCLUDED.review_count, 
+			percent_positive = EXCLUDED.percent_positive, 
+			review_score = EXCLUDED.review_score, 
+			review_score_label = EXCLUDED.review_score_label`,
+		);
+
+		await bulkUpsert(
+			"game_assets",
+			[
+				"game_id",
+				"asset_url_format",
+				"main_capsule",
+				"small_capsule",
+				"header",
+				"page_background_path",
+				"hero_capsule",
+				"library_capsule",
+				"library_hero",
+				"community_icon",
+			],
+			assetsData,
+			`ON CONFLICT (game_id) DO UPDATE SET
+			asset_url_format = EXCLUDED.asset_url_format,
+			main_capsule = EXCLUDED.main_capsule,
+			small_capsule = EXCLUDED.small_capsule,
+			header = EXCLUDED.header,
+			page_background_path = EXCLUDED.page_background_path,
+			hero_capsule = EXCLUDED.hero_capsule,
+			library_capsule = EXCLUDED.library_capsule,
+			library_hero = EXCLUDED.library_hero,
+			community_icon = EXCLUDED.community_icon`,
+		);
+
+		await bulkUpsert(
+			"game_platforms",
+			[
+				"game_id",
+				"windows",
+				"mac",
+				"steamos_linux",
+				"steam_deck_compat_category",
+				"steam_os_compat_category",
+			],
+			platformsData,
+			`ON CONFLICT (game_id) DO UPDATE SET
+			windows = EXCLUDED.windows,
+			mac = EXCLUDED.mac,
+			steamos_linux = EXCLUDED.steamos_linux,
+			steam_deck_compat_category = EXCLUDED.steam_deck_compat_category,
+			steam_os_compat_category = EXCLUDED.steam_os_compat_category`,
 		);
 
 		const devMap = new Map<string, number>();
