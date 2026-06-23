@@ -383,3 +383,22 @@ export const saveSteamGames = async (storeItems: any[]) => {
 		);
 	}
 };
+
+export const getGameCount = async () => {
+	const result = await pool.query("SELECT COUNT(*) FROM games");
+	return result.rows[0].count;
+};
+
+export const getOldestGame = async () => {
+	const result = await pool.query(
+		"SELECT * FROM games ORDER BY last_updated ASC LIMIT 1",
+	);
+	return result.rows[0];
+};
+
+export const getNewestGame = async () => {
+	const result = await pool.query(
+		"SELECT * FROM games JOIN game_assets on games.app_id = game_assets.game_id ORDER BY last_updated DESC, app_id DESC LIMIT 1",
+	);
+	return result.rows[0];
+};

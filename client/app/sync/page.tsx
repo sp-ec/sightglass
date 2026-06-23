@@ -1,11 +1,15 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { LucideRefreshCcw, Square } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { formatAssetUrl } from "@/lib/utils";
 
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 
 type SyncStatus = "running" | "stopped" | null;
 
@@ -13,6 +17,8 @@ type SyncInfo = {
 	status: SyncStatus;
 	fetched: number;
 	total: number;
+	oldestGameDate: Date | null;
+	newestGame: any | null;
 };
 
 export default function SyncPage() {
@@ -92,7 +98,32 @@ export default function SyncPage() {
 	};
 
 	return (
-		<div className="space-y-4 flex flex-col place-items-center">
+		<div className="space-y-16 flex flex-col place-items-center mt-24">
+			{syncInfo?.newestGame && (
+				<div className="flex flex-col gap-4 max-w-125">
+					<Link
+						href={`https://store.steampowered.com/${syncInfo?.newestGame?.store_url_path}`}
+						rel="noopener noreferrer"
+						target="_blank"
+					>
+						<Image
+							src={`${formatAssetUrl(syncInfo?.newestGame?.asset_url_format || "", syncInfo?.newestGame?.main_capsule || "")}`}
+							alt=""
+							width={500}
+							height={300}
+							className="rounded-md"
+						/>
+					</Link>
+
+					<p>
+						{syncInfo?.newestGame?.name}{" "}
+						<span className="text-muted-foreground">
+							({syncInfo?.newestGame?.app_id})
+						</span>
+					</p>
+				</div>
+			)}
+
 			<div className="w-full max-w-sm space-y-4 flex flex-col place-items-end">
 				<Field className="w-full max-w-sm">
 					<FieldLabel htmlFor="sync-progress">
@@ -123,6 +154,20 @@ export default function SyncPage() {
 						id="sync-progress"
 					/>
 				</Field>
+				<div className="w-full max-w-sm space-y-2 flex flex-col place-items-end text-xs text-muted-foreground opacity-50">
+					{syncInfo?.oldestGameDate && (
+						<p className="mt-2">
+							Oldest fetched game:{" "}
+							{new Date(syncInfo.oldestGameDate).toLocaleString()}
+						</p>
+					)}
+					{syncInfo?.newestGame && (
+						<p className="mt-2">
+							Newest fetched game:{" "}
+							{new Date(syncInfo.newestGame.last_updated).toLocaleString()}
+						</p>
+					)}
+				</div>
 				<Button
 					size="lg"
 					onClick={() => void handleSyncAction()}
@@ -143,7 +188,8 @@ export default function SyncPage() {
 
 			{showCompleted ? (
 				<div className="rounded-md border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-700">
-					Sync Completed
+					Sync Completed at{" "}
+					{new Date(syncInfo?.newestGame.last_updated).toLocaleString()}
 				</div>
 			) : null}
 		</div>
