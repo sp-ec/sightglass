@@ -1,7 +1,7 @@
 import "dotenv/config";
-import express, { Request, Response } from 'express';
-import gameListRoutes from "./modules/gameList/gameListRoutes";
+import express from "express";
 import { initializeDatabase } from "./sql/db";
+import apiRoutes from "./api.routes";
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -9,7 +9,7 @@ const port = process.env.PORT || 3001;
 app.use(express.json());
 
 // Routes
-app.use("/gamelist", gameListRoutes);
+app.use("/api", apiRoutes);
 
 const startServer = async () => {
 	// Ensure the database schema exists before accepting HTTP requests

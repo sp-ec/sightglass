@@ -8,18 +8,23 @@ import {
   SidebarMenuItem,
   SidebarMenuButton
 } from "@/components/ui/sidebar"
-import { Gamepad2, SquareTerminal, CloudSync } from "lucide-react"
-import { NavData } from "./nav-data"
+import { Gamepad2, CloudSync, LibraryBig } from "lucide-react";
+import { NavData } from "./nav-data";
 
 const data = {
-  navData: [  
-    {
-      name: "Sync Steam Data",
-      url: "sync",
-      icon: CloudSync,
-    }
-  ]
-}
+	navData: [
+		{
+			name: "Sync Steam Data",
+			url: "sync",
+			icon: CloudSync,
+		},
+		{
+			name: "Browse Games",
+			url: "browse",
+			icon: LibraryBig,
+		},
+	],
+};
 
 export function AppSidebar() {
   return (
