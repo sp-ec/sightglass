@@ -29,8 +29,8 @@ const fetchSteamGames = async (query: ReturnType<typeof fetchGamesQuery>) => {
     return response.json() as Promise<SteamQueryResponse>;
 };
 
-const runGameSync = async () => {
-    let start = 0;
+const runGameSync = async (startAt: number) => {
+    let start = startAt;
 
     while (!syncStopRequested) {
         const response = await fetchSteamGames(fetchGamesQuery(start));
@@ -41,7 +41,7 @@ const runGameSync = async () => {
             break;
         }
 
-        totalFetched += storeItems.length;
+        totalFetched = start + storeItems.length;
 
         console.log(`Fetched games: ${start} ... ${storeItems.length + start}`);
         await saveSteamGames(storeItems);
@@ -54,13 +54,14 @@ const runGameSync = async () => {
     }
 };
 
-export const startGameSync = async () => {
+export const startGameSync = async (startAt = 0) => {
     if (syncPromise) {
         return { message: "Game sync already running" };
     }
 
     syncStopRequested = false;
-    syncPromise = runGameSync()
+    totalFetched = startAt;
+    syncPromise = runGameSync(startAt)
         .catch((error) => {
             console.error("Game sync failed:", error);
         })

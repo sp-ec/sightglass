@@ -46,7 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 		<div className="min-h-screen bg-background text-foreground">
 			<SidebarProvider>
 				<AppSidebar />
-				<main className="mx-auto w-full px-4 py-6 sm:px-6 lg:px-8">
+				<main className="mx-auto w-full p-6">
 					<header className="flex items-center gap-4">
 						<SidebarTrigger className="cursor-pointer" />
 						<Separator orientation="vertical" />
@@ -54,8 +54,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 							{routeTitles[pathname] || "Page Title"}
 						</h1>
 					</header>
-
-					{children}
+					<div className="mt-6 mx-auto w-full flex flex-col justify-center">
+						{children}
+					</div>
 				</main>
 			</SidebarProvider>
 		</div>

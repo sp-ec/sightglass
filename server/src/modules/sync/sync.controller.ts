@@ -7,7 +7,8 @@ import {
 
 export const startSync = async (req: Request, res: Response) => {
 	try {
-		const result = await startGameSync();
+		const startAt = Number(req.body?.startAt ?? 0);
+		const result = await startGameSync(Number.isFinite(startAt) ? startAt : 0);
 		return res.status(200).json(result);
 	} catch (error) {
 		return res.status(500).json({
@@ -33,7 +34,7 @@ export const getStatus = async (req: Request, res: Response) => {
 		return res.status(200).json(result);
 	} catch (error) {
 		return res.status(500).json({
-			message: "Failed to start sync",
+			message: "Failed to get sync status",
 		});
 	}
 };
