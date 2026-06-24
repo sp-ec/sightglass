@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: "{{api_url}}/sync/start"
+  url: "{{api_url}}/sync/stop"
   auth: inherit
 
 settings:
