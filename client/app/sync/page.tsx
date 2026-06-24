@@ -108,7 +108,7 @@ export default function SyncPage() {
 	};
 
 	return (
-		<div className="space-y-16 flex flex-col place-items-center mt-24">
+		<div className="space-y-16 flex flex-col place-items-center justify-center">
 			{showCompleted ? (
 				<div className="rounded-md border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-700 max-w-lg w-full">
 					Sync Completed at{" "}

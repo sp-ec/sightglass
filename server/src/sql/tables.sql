@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 CREATE TABLE IF NOT EXISTS games (
     app_id INTEGER PRIMARY KEY UNIQUE NOT NULL,
     name VARCHAR(255),
@@ -10,7 +12,9 @@ CREATE TABLE IF NOT EXISTS games (
     rating_type VARCHAR(50),
     rating VARCHAR(10),
     last_updated TIMESTAMP
-) ;
+);
+
+CREATE INDEX IF NOT EXISTS games_name_trgm_idx ON games USING GIN (name gin_trgm_ops);
 
 CREATE TABLE IF NOT EXISTS developers (
     id SERIAL PRIMARY KEY,
