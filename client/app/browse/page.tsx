@@ -41,7 +41,7 @@ export default function BrowsePage() {
 		const delayDebounceFn = setTimeout(async () => {
 			try {
 				const res = await fetch(
-					`${process.env.NEXT_PUBLIC_API_URL}/games?title=${encodeURIComponent(searchTerm)}`,
+					`${process.env.NEXT_PUBLIC_API_URL}/games/search?title=${encodeURIComponent(searchTerm)}`,
 				);
 				const data = await res.json();
 				setResults(data);

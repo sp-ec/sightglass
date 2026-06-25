@@ -402,3 +402,24 @@ export const getNewestGame = async () => {
 	);
 	return result.rows[0];
 };
+
+export const upsertTags = async (tags: { tagid: number; name: string }[]) => {
+	if (tags.length === 0) return null;
+
+	const values: any[] = [];
+	const placeholders = tags
+		.map((tag, i) => {
+			values.push(tag.tagid, tag.name);
+			return `($${i * 2 + 1}, $${i * 2 + 2})`;
+		})
+		.join(", ");
+
+	const query = `
+        INSERT INTO tags (id, name) 
+        VALUES ${placeholders} 
+        ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
+    `;
+
+	const result = await pool.query(query, values);
+	return result.rows[0];
+};

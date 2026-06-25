@@ -67,6 +67,46 @@ CREATE TABLE IF NOT EXISTS game_supported_languages (
     PRIMARY KEY (game_id, elanguage)
 );
 
+CREATE TABLE IF NOT EXISTS languages (
+    id INTEGER UNIQUE NOT NULL PRIMARY KEY,
+    code VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255) UNIQUE NOT NULL
+);
+
+INSERT INTO languages (id, code, name) VALUES
+    (0, 'en', 'English'),
+    (1, 'de', 'German'),
+    (2, 'fr', 'French'),
+    (3, 'it', 'Italian'),
+    (4, 'ko', 'Korean'),
+    (5, 'es', 'Spanish'),
+    (6, 'zh-CN', 'Simplified Chinese'),
+    (7, 'zh-TW', 'Traditional Chinese'),
+    (8, 'ru', 'Russian'),
+    (9, 'th', 'Thai'),
+    (10, 'ja', 'Japanese'),
+    (11, 'pt', 'Portuguese'),
+    (12, 'pl', 'Polish'),
+    (13, 'da', 'Danish'),
+    (14, 'nl', 'Dutch'),
+    (15, 'fi', 'Finnish'),
+    (16, 'no', 'Norwegian'),
+    (17, 'sv', 'Swedish'),
+    (18, 'ro', 'Romanian'),
+    (19, 'tr', 'Turkish'),
+    (20, 'hu', 'Hungarian'),
+    (21, 'cs', 'Czech'),
+    (22, 'pt-BR', 'Brazilian Portuguese'),
+    (23, 'bg', 'Bulgarian'),
+    (24, 'el', 'Greek'),
+    (25, 'ar', 'Arabic'),
+    (26, 'uk', 'Ukrainian'),
+    (27, 'es-419', 'Latin American Spanish'),
+    (28, 'vi', 'Vietnamese'),
+    (29, 'id', 'Indonesian'),
+    (30, 'ms', 'Malay')
+ON CONFLICT (id) DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS game_platforms (
     game_id INTEGER PRIMARY KEY REFERENCES games(app_id) ON DELETE CASCADE,
     windows BOOLEAN,

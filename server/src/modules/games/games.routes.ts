@@ -1,8 +1,9 @@
 import express from 'express';
-import { getGamesByTitle } from './games.controller';
+import { getGameById, getGamesByTitle } from "./games.controller";
 
 const gameRoutes = express.Router();
 
-gameRoutes.get("/", getGamesByTitle);
+gameRoutes.get("/search", getGamesByTitle);
+gameRoutes.get("/:app_id", getGameById);
 
 export default gameRoutes;

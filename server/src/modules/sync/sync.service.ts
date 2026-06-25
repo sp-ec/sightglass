@@ -4,7 +4,9 @@ import {
 	getGameCount,
 	getOldestGame,
 	getNewestGame,
+	upsertTags,
 } from "./sync.repository";
+
 import { SteamQueryResponse } from "./sync.types";
 
 const BATCH_SIZE = 1000;
@@ -64,6 +66,9 @@ export const startGameSync = async (startAt = 0) => {
 		return { message: "Game sync already running" };
 	}
 
+	//sync tags first
+	await syncTags();
+
 	syncStopRequested = false;
 	totalFetched = startAt;
 	syncPromise = runGameSync(startAt)
@@ -102,3 +107,27 @@ export const getSyncStatus = async () => {
 		newestGame: newestGame,
 	};
 };
+
+export const syncTags = async () => {
+	const response = await fetch(
+		"https://store.steampowered.com/tagdata/populartags/english",
+		{
+			method: "GET",
+			headers: {
+				"Content-Type": "application/json",
+			},
+		},
+	);
+
+	if (!response.ok) {
+		throw new Error(
+			`Steam Store tags request failed with status ${response.status}`,
+		);
+	}
+
+	const data = await response.json();
+	await upsertTags(data);
+
+	return { message: "Game tags fetched and upserted" };
+};
+
