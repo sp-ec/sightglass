@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: "{{api_url}}/games/632360"
+  url: "{{api_url}}/games/4192480"
   auth: inherit
 
 settings:

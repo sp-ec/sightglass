@@ -1,4 +1,12 @@
 import pool from "@/sql/db";
+import {
+	gameAssets,
+	gameResponse,
+	gameLanguages,
+	gameDevelopers,
+	gamePublishers,
+	gameTags,
+} from "./games.types";
 
 export const findGameByTitle = async (query: string) => {
 	try {
@@ -53,13 +61,13 @@ export const findGameById = async (appId: string) => {
 		);
 		return {
 			game: gameResult.rows[0],
-			tags: tagResult.rows,
-			developers: developerResult.rows,
-			publishers: publisherResult.rows,
-			languages: languageResult.rows,
+			tags: tagResult.rows as gameTags,
+			developers: developerResult.rows as gameDevelopers,
+			publishers: publisherResult.rows as gamePublishers,
+			languages: languageResult.rows as gameLanguages,
 		};
 	} catch (error) {
 		console.error(error);
-		return [];
+		return null;
 	}
 };
