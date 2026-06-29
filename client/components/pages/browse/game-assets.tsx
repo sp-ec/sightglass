@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Image from "next/image";
+import Link from "next/link";
 
 type GameAssetDisplayProps = {
 	url: string;
@@ -31,14 +32,17 @@ function GameAssetDisplay({
 
 	return (
 		<div className="flex flex-col gap-2">
-			<Image
-				src={imageUrl}
-				alt={name}
-				width={width}
-				height={height}
-				className={`block rounded-md w-${size}`}
-				onError={() => setImageUrl(fallbackUrl)}
-			/>
+			<Link href={imageUrl} target="_blank" rel="noopener noreferrer">
+				<Image
+					src={imageUrl}
+					alt={name}
+					width={width}
+					height={height}
+					className={`block rounded-md w-${size}`}
+					onError={() => setImageUrl(fallbackUrl)}
+				/>
+			</Link>
+
 			<p className="text-sm text-muted-foreground">{name}</p>
 		</div>
 	);
