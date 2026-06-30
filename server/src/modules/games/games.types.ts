@@ -51,3 +51,31 @@ export type gameResponse = {
     publishers: gamePublishers,
     languages: gameLanguages
 } | null;
+
+export type chartAggregationMode =
+	| "review_count"
+	| "review_score"
+	| "release_date"
+	| "price"
+	| "tag";
+
+export const CHART_BUCKET_MIN = 1;
+export const CHART_BUCKET_MAX = 1000000;
+
+export type chartAggregationPoint = {
+	bucket: string;
+	count: number;
+	min_value: number | null;
+	max_value: number | null;
+	average_value: number | null;
+	average_review_score: number | null;
+	average_percent_positive: number | null;
+	average_review_count: number | null;
+	average_price_in_cents: number | null;
+};
+
+export type chartAggregationResponse = {
+	mode: chartAggregationMode;
+	bucket_size: number | null;
+	points: chartAggregationPoint[];
+};

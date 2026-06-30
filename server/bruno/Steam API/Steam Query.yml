@@ -24,7 +24,6 @@ http:
               "include_bundles": false,
               "include_dlc": false,
               "include_demos": false,
-              "include_links": true,
               "include_links": true
             }
           },

@@ -38,7 +38,7 @@ function GameAssetDisplay({
 					alt={name}
 					width={width}
 					height={height}
-					className={`block rounded-md w-${size}`}
+					className={`block rounded-md w-${size ? size : "0"}`}
 					onError={() => setImageUrl(fallbackUrl)}
 				/>
 			</Link>
@@ -64,20 +64,18 @@ function GameAssets({ assetData }: GameAssetsProps) {
 								width={1232}
 								height={896}
 							/>
-							<div className="flex flex-col gap-4">
+							<div className="flex flex-col gap-4 w-100">
 								<GameAssetDisplay
 									url={assetData.small_capsule}
 									name="Small Capsule"
 									width={462}
 									height={174}
-									size={100}
 								/>
 								<GameAssetDisplay
 									url={assetData.hero_capsule}
 									name="Hero Capsule"
 									width={920}
 									height={430}
-									size={100}
 								/>
 							</div>
 						</div>
@@ -111,7 +109,7 @@ function GameAssets({ assetData }: GameAssetsProps) {
 								width={1438}
 								height={810}
 							/>
-							<div className="flex flex-col gap-4">
+							<div className="flex flex-col gap-4 w-100">
 								<GameAssetDisplay
 									url={assetData.logo}
 									name="Library Logo"
@@ -119,13 +117,15 @@ function GameAssets({ assetData }: GameAssetsProps) {
 									height={720}
 									size={200}
 								/>
-								<GameAssetDisplay
-									url={assetData.community_icon}
-									name="Community Icon"
-									width={256}
-									height={256}
-									size={15}
-								/>
+								<div className="w-80 text-nowrap">
+									<GameAssetDisplay
+										url={assetData.community_icon}
+										name="Community Icon"
+										width={256}
+										height={256}
+										size={15}
+									/>
+								</div>
 							</div>
 						</div>
 					</div>

@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { fetchGameById, searchGamesByTitle } from "./games.service";
+import { fetchGameById, searchGamesByTitle, getChartAggregation } from "./games.service";
 
 export const getGamesByTitle = async (req: Request, res: Response) => {
 	try {
@@ -19,6 +19,26 @@ export const getGameById = async (req: Request, res: Response) => {
 	} catch (error) {
 		return res.status(500).json({
 			message: "Failed to get game by ID",
+		});
+	}
+};
+
+export const getGameChartData = async (req: Request, res: Response) => {
+	try {
+		const result = await getChartAggregation(
+			req.query.mode as string,
+			req.query.bucket_size as string | undefined,
+		);
+		if (!result) {
+			return res.status(400).json({
+				message: "Invalid chart aggregation mode",
+			});
+		}
+
+		return res.status(200).json(result);
+	} catch (error) {
+		return res.status(500).json({
+			message: "Failed to get chart aggregation data",
 		});
 	}
 };

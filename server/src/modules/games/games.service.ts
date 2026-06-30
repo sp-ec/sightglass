@@ -1,5 +1,16 @@
-import { findGameByTitle, findGameById } from "./games.repository";
-import { gameAssets, gameBasicInfo, gameResponse } from "./games.types";
+import {
+	findGameByTitle,
+	findGameById,
+	getGameChartAggregation,
+} from "./games.repository";
+import {
+	gameAssets,
+	gameBasicInfo,
+	gameResponse,
+	chartAggregationMode,
+	CHART_BUCKET_MIN,
+	CHART_BUCKET_MAX,
+} from "./games.types";
 
 function formatAssetUrl(url: string, filename: string): string {
 	let formattedUrl =
@@ -96,4 +107,31 @@ export const fetchGameById = async (appId: string) => {
 	};
 
 	return gameResponse;
+};
+
+export const getChartAggregation = async (
+	mode: string,
+	bucketSize: string | undefined,
+) => {
+	const allowedModes: chartAggregationMode[] = [
+		"review_count",
+		"review_score",
+		"release_date",
+		"price",
+		"tag",
+	];
+
+	if (!allowedModes.includes(mode as chartAggregationMode)) {
+		return null;
+	}
+
+	const parsedBucketSize = bucketSize ? Number(bucketSize) : CHART_BUCKET_MIN;
+	const normalizedBucketSize = Number.isFinite(parsedBucketSize)
+		? Math.min(CHART_BUCKET_MAX, Math.max(CHART_BUCKET_MIN, parsedBucketSize))
+		: null;
+
+	return await getGameChartAggregation(
+		mode as chartAggregationMode,
+		normalizedBucketSize,
+	);
 };
