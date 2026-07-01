@@ -28,7 +28,7 @@ const data = {
 	queryData: [
 		{
 			name: "New Query",
-			url: "new-query",
+			url: "query",
 			icon: SquarePlus,
 		},
 	],

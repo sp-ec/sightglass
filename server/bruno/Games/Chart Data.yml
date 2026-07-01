@@ -5,13 +5,13 @@ info:
 
 http:
   method: GET
-  url: "{{api_url}}/games/chart?mode=review_count&bucket_size=1000000"
+  url: "{{api_url}}/games/chart?mode=tag&bucket_size=500"
   params:
     - name: mode
-      value: review_count
+      value: tag
       type: query
     - name: bucket_size
-      value: "1000000"
+      value: "500"
       type: query
   auth: inherit
 
