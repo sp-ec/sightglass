@@ -51,8 +51,6 @@ const CHART_TYPES = [
 const AXIS_OPTIONS = [
 	{ label: "Bucket", value: "bucket" },
 	{ label: "Count", value: "count" },
-	{ label: "Min Value", value: "min_value" },
-	{ label: "Max Value", value: "max_value" },
 	{ label: "Average Value", value: "average_value" },
 	{ label: "Average Review Score", value: "average_review_score" },
 	{ label: "Average Positive %", value: "average_percent_positive" },
@@ -202,6 +200,13 @@ export default function QueryPage() {
 		}
 
 		if (chartType === "bar") {
+			if (groupBy === "tag") {
+				console.log(chartData.points);
+				chartData.points.sort(
+					(a, b) =>
+						(toNumber(a[yAxis]) as number) - (toNumber(b[yAxis]) as number),
+				);
+			}
 			return chartData.points.map((point, index) => ({
 				...point,
 				color: BAR_COLORS[index % BAR_COLORS.length],
@@ -225,6 +230,17 @@ export default function QueryPage() {
 			.filter((point) => point.x !== null && point.y !== null)
 			.sort((a, b) => (a.x as number) - (b.x as number));
 	}, [chartData, chartType, xAxis, yAxis]);
+
+	const visibleScatterSeries = useMemo(() => {
+		if (scatterDomain[0] === "auto" || scatterDomain[1] === "auto") {
+			return selectedSeries;
+		}
+		return selectedSeries.filter(
+			(point) =>
+				(point.x as number) >= (scatterDomain[0] as number) &&
+				(point.x as number) <= (scatterDomain[1] as number),
+		);
+	}, [selectedSeries, scatterDomain]);
 
 	useEffect(() => {
 		setScatterDomain(["auto", "auto"]);
@@ -544,6 +560,7 @@ export default function QueryPage() {
 										content={
 											<CustomTooltip active={true} payload={[]} label="" />
 										}
+										isAnimationActive={false}
 									/>
 									<Bar dataKey={yAxis} radius={[0, 0, 0, 0]}>
 										{selectedSeries.map((_, index) => (
@@ -553,7 +570,12 @@ export default function QueryPage() {
 											/>
 										))}
 									</Bar>
-									<Brush dataKey="bucket" height={30} stroke="#8884d8" />
+									<Brush
+										dataKey="bucket"
+										height={30}
+										stroke="oklch(68.5% 0.169 237.323)"
+										fill="oklch(0.21 0.006 285.885)"
+									/>
 								</BarChart>
 							) : (
 								<ScatterChart
@@ -569,14 +591,18 @@ export default function QueryPage() {
 										allowDataOverflow={true}
 									/>
 									<YAxis dataKey="y" type="number" name={yAxis} />
-
+									<ZAxis range={[16, 16]} />
 									<Tooltip
 										content={
 											<CustomTooltip active={true} payload={[]} label="" />
 										}
+										isAnimationActive={false}
 									/>
 									<Scatter
-										data={selectedSeries as Array<{ x: number; y: number }>}
+										isAnimationActive={false}
+										data={
+											visibleScatterSeries as Array<{ x: number; y: number }>
+										}
 										fill="#60a5fa"
 										shape={(props: any) => (
 											<circle
@@ -590,17 +616,22 @@ export default function QueryPage() {
 									<Brush
 										dataKey="x"
 										height={30}
-										stroke="#8884d8"
+										stroke="oklch(68.5% 0.169 237.323)"
+										fill="oklch(0.21 0.006 285.885)"
 										onChange={(e: any) => {
 											if (
 												e.startIndex !== undefined &&
-												e.endIndex !== undefined &&
-												selectedSeries.length > 0
+												e.endIndex !== undefined
 											) {
-												setScatterDomain([
-													selectedSeries[e.startIndex].x as number,
-													selectedSeries[e.endIndex].x as number,
-												]);
+												const newMin = selectedSeries[e.startIndex].x as number;
+												const newMax = selectedSeries[e.endIndex].x as number;
+
+												setScatterDomain((prev) => {
+													if (prev[0] === newMin && prev[1] === newMax) {
+														return prev;
+													}
+													return [newMin, newMax];
+												});
 											}
 										}}
 									/>
