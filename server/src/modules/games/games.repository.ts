@@ -79,30 +79,30 @@ export const findGameById = async (appId: string) => {
 
 const aggregationFragments: Record<
 	chartAggregationMode,
-	{ bucketSql: string; valueSql: string }
+	{ bucketSql: string; valueSql: string; joinSql?: string }
 > = {
 	review_count: {
 		bucketSql: `CASE
-			WHEN reviews.review_count IS NULL THEN 'Unknown'
-			WHEN reviews.review_count = 0 THEN '0'
-			WHEN reviews.review_count < 100 THEN '1-99'
-			WHEN reviews.review_count < 500 THEN '100-499'
-			WHEN reviews.review_count < 1000 THEN '500-999'
-			WHEN reviews.review_count < 5000 THEN '1k-4.9k'
-			WHEN reviews.review_count < 10000 THEN '5k-9.9k'
-			ELSE '10k+'
-		END`,
+            WHEN reviews.review_count IS NULL THEN 'Unknown'
+            WHEN reviews.review_count = 0 THEN '0'
+            WHEN reviews.review_count < 100 THEN '1-99'
+            WHEN reviews.review_count < 500 THEN '100-499'
+            WHEN reviews.review_count < 1000 THEN '500-999'
+            WHEN reviews.review_count < 5000 THEN '1k-4.9k'
+            WHEN reviews.review_count < 10000 THEN '5k-9.9k'
+            ELSE '10k+'
+        END`,
 		valueSql: `reviews.review_count::numeric`,
 	},
 	review_score: {
 		bucketSql: `CASE
-			WHEN reviews.review_score IS NULL THEN 'Unknown'
-			WHEN reviews.review_score < 20 THEN '0-19'
-			WHEN reviews.review_score < 40 THEN '20-39'
-			WHEN reviews.review_score < 60 THEN '40-59'
-			WHEN reviews.review_score < 80 THEN '60-79'
-			ELSE '80-100'
-		END`,
+            WHEN reviews.review_score IS NULL THEN 'Unknown'
+            WHEN reviews.review_score < 20 THEN '0-19'
+            WHEN reviews.review_score < 40 THEN '20-39'
+            WHEN reviews.review_score < 60 THEN '40-59'
+            WHEN reviews.review_score < 80 THEN '60-79'
+            ELSE '80-100'
+        END`,
 		valueSql: `reviews.review_score::numeric`,
 	},
 	release_date: {
@@ -111,21 +111,23 @@ const aggregationFragments: Record<
 	},
 	price: {
 		bucketSql: `CASE
-			WHEN games.price_in_cents IS NULL THEN 'Unknown'
-			WHEN games.price_in_cents = 0 THEN 'Free'
-			WHEN games.price_in_cents < 500 THEN '$0.01-$4.99'
-			WHEN games.price_in_cents < 1000 THEN '$5.00-$9.99'
-			WHEN games.price_in_cents < 2000 THEN '$10.00-$19.99'
-			WHEN games.price_in_cents < 3000 THEN '$20.00-$29.99'
-			WHEN games.price_in_cents < 4000 THEN '$30.00-$39.99'
-			WHEN games.price_in_cents < 5000 THEN '$40.00-$49.99'
-			ELSE '$50.00+'
-		END`,
+            WHEN games.price_in_cents IS NULL THEN 'Unknown'
+            WHEN games.price_in_cents = 0 THEN 'Free'
+            WHEN games.price_in_cents < 500 THEN '$0.01-$4.99'
+            WHEN games.price_in_cents < 1000 THEN '$5.00-$9.99'
+            WHEN games.price_in_cents < 2000 THEN '$10.00-$19.99'
+            WHEN games.price_in_cents < 3000 THEN '$20.00-$29.99'
+            WHEN games.price_in_cents < 4000 THEN '$30.00-$39.99'
+            WHEN games.price_in_cents < 5000 THEN '$40.00-$49.99'
+            ELSE '$50.00+'
+        END`,
 		valueSql: `games.price_in_cents::numeric`,
 	},
 	tag: {
 		bucketSql: `COALESCE(tags.name, 'Unknown')`,
 		valueSql: `COALESCE(tags.id, 0)::numeric`,
+		joinSql: `LEFT JOIN game_tags ON games.app_id = game_tags.game_id 
+                  LEFT JOIN tags ON game_tags.tag_id = tags.id`,
 	},
 };
 
@@ -161,62 +163,64 @@ export const getGameChartAggregation = async (
 	const result = await pool.query(
 		isNumericMode
 			? `WITH numeric_games AS (
-				SELECT
-					${fragment.valueSql} AS value,
-					reviews.review_score AS review_score,
-					reviews.percent_positive AS percent_positive,
-					reviews.review_count AS review_count,
-					games.price_in_cents AS price_in_cents
-				FROM games
-				LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
-			),
-			aggregated_games AS (
-				SELECT
-					FLOOR(value / ${normalizedBucketSize}) * ${normalizedBucketSize} AS bucket,
-					value,
-					review_score,
-					percent_positive,
-					review_count,
-					price_in_cents
-				FROM numeric_games
-			)
-			SELECT
-				bucket::text AS bucket,
-				COUNT(*)::int AS count,
-				MIN(value)::numeric AS min_value,
-				MAX(value)::numeric AS max_value,
-				ROUND(AVG(value), 2)::numeric AS average_value,
-				ROUND(AVG(review_score), 2)::numeric AS average_review_score,
-				ROUND(AVG(percent_positive), 2)::numeric AS average_percent_positive,
-				ROUND(AVG(review_count), 2)::numeric AS average_review_count,
-				ROUND(AVG(price_in_cents), 2)::numeric AS average_price_in_cents
-			FROM aggregated_games
-			GROUP BY bucket
-			ORDER BY min_value ASC;`
+                SELECT
+                    ${fragment.valueSql} AS value,
+                    reviews.review_score AS review_score,
+                    reviews.percent_positive AS percent_positive,
+                    reviews.review_count AS review_count,
+                    games.price_in_cents AS price_in_cents
+                FROM games
+                LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
+                ${fragment.joinSql || ""}
+            ),
+            aggregated_games AS (
+                SELECT
+                    FLOOR(value / ${normalizedBucketSize}) * ${normalizedBucketSize} AS bucket,
+                    value,
+                    review_score,
+                    percent_positive,
+                    review_count,
+                    price_in_cents
+                FROM numeric_games
+            )
+            SELECT
+                bucket::text AS bucket,
+                COUNT(*)::int AS count,
+                MIN(value)::numeric AS min_value,
+                MAX(value)::numeric AS max_value,
+                ROUND(AVG(value), 2)::numeric AS average_value,
+                ROUND(AVG(review_score), 2)::numeric AS average_review_score,
+                ROUND(AVG(percent_positive), 2)::numeric AS average_percent_positive,
+                ROUND(AVG(review_count), 2)::numeric AS average_review_count,
+                ROUND(AVG(price_in_cents), 2)::numeric AS average_price_in_cents
+            FROM aggregated_games
+            GROUP BY bucket
+            ORDER BY min_value ASC;`
 			: `WITH aggregated_games AS (
-				SELECT
-					${fragment.bucketSql} AS bucket,
-					${fragment.valueSql} AS value,
-					reviews.review_score AS review_score,
-					reviews.percent_positive AS percent_positive,
-					reviews.review_count AS review_count,
-					games.price_in_cents AS price_in_cents
-				FROM games
-				LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
-			)
-			SELECT
-				bucket::text AS bucket,
-				COUNT(*)::int AS count,
-				MIN(value)::numeric AS min_value,
-				MAX(value)::numeric AS max_value,
-				ROUND(AVG(value), 2)::numeric AS average_value,
-				ROUND(AVG(review_score), 2)::numeric AS average_review_score,
-				ROUND(AVG(percent_positive), 2)::numeric AS average_percent_positive,
-				ROUND(AVG(review_count), 2)::numeric AS average_review_count,
-				ROUND(AVG(price_in_cents), 2)::numeric AS average_price_in_cents
-			FROM aggregated_games
-			GROUP BY bucket
-			ORDER BY min_value ASC;`,
+                SELECT
+                    ${fragment.bucketSql} AS bucket,
+                    ${fragment.valueSql} AS value,
+                    reviews.review_score AS review_score,
+                    reviews.percent_positive AS percent_positive,
+                    reviews.review_count AS review_count,
+                    games.price_in_cents AS price_in_cents
+                FROM games
+                LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
+                ${fragment.joinSql || ""}
+            )
+            SELECT
+                bucket::text AS bucket,
+                COUNT(*)::int AS count,
+                MIN(value)::numeric AS min_value,
+                MAX(value)::numeric AS max_value,
+                ROUND(AVG(value), 2)::numeric AS average_value,
+                ROUND(AVG(review_score), 2)::numeric AS average_review_score,
+                ROUND(AVG(percent_positive), 2)::numeric AS average_percent_positive,
+                ROUND(AVG(review_count), 2)::numeric AS average_review_count,
+                ROUND(AVG(price_in_cents), 2)::numeric AS average_price_in_cents
+            FROM aggregated_games
+            GROUP BY bucket
+            ORDER BY min_value ASC;`,
 	);
 
 	return {

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { BarChart3, ScatterChart as ScatterChartIcon } from "lucide-react";
+import { z } from "zod";
 import {
 	Card,
 	CardContent,
@@ -30,6 +31,8 @@ import {
 	Tooltip,
 	XAxis,
 	YAxis,
+	ZAxis,
+	Brush,
 } from "recharts";
 
 const GROUP_BY_OPTIONS = [
@@ -57,7 +60,6 @@ const AXIS_OPTIONS = [
 	{ label: "Average Price", value: "average_price_in_cents" },
 ] as const;
 
-const DEFAULT_BUCKET_SIZE = "100";
 const BAR_COLORS = ["#60a5fa", "#34d399", "#fbbf24", "#f472b6", "#a78bfa"];
 const SCATTER_NUMERIC_AXES = AXIS_OPTIONS.filter(
 	(option) => option.value !== "bucket",
@@ -74,22 +76,90 @@ type ChartResponse = {
 	points: ChartPoint[];
 };
 
-const isNumeric = (value: string | number | null | undefined) =>
-	typeof value === "number" && Number.isFinite(value);
+type BucketConfig = {
+	min: number;
+	max: number;
+	step: number;
+	unit?: string;
+	locked?: boolean;
+	displayValue?: (value: number) => string;
+};
 
-const toNumber = (value: string | number | null | undefined) =>
-	isNumeric(value) ? value : null;
+const BUCKET_CONFIGS: Record<GroupByValue, BucketConfig> = {
+	review_count: { min: 10, max: 5_000_000, step: 10 },
+	review_score: { min: 1, max: 1, step: 1, locked: true },
+	release_date: { min: 1, max: 1825, step: 1, unit: "days" },
+	price: {
+		min: 25,
+		max: 100_000,
+		step: 25,
+		displayValue: (value) => `$${(value / 100).toFixed(2)}`,
+	},
+	tag: { min: 1, max: 1, step: 1, locked: true },
+};
+
+const bucketSchema = z.number().finite().int().positive();
+
+const toNumber = (value: string | number | null | undefined) => {
+	if (value === null || value === undefined || value === "") {
+		return null;
+	}
+	const parsed = Number(value);
+	return Number.isFinite(parsed) ? parsed : null;
+};
+
+const CustomTooltip = ({
+	active,
+	payload,
+	label,
+}: {
+	active: any;
+	payload: any;
+	label: any;
+}) => {
+	if (active && payload && payload.length) {
+		const payloadData = payload[0].payload;
+		return (
+			<div className="bg-card p-4 border rounded shadow-md">
+				<p className="font-bold mb-2">Bucket: {payloadData.bucket}</p>
+				<p className="text-sm text-gray-500">Count: {payloadData.count}</p>
+				<p className="text-sm text-gray-500">
+					Range: {payloadData.min_value} - {payloadData.max_value}
+				</p>
+				<p className="text-sm text-gray-500">
+					Avg. Review Count: {payloadData.average_review_count}
+				</p>
+				<p className="text-sm text-gray-500">
+					Avg. Review Score: {payloadData.average_review_score}
+				</p>
+				<p className="text-sm text-gray-500">
+					Avg. % Positive: {payloadData.average_percent_positive}
+				</p>
+				<p className="text-sm text-gray-500">
+					Avg. Price: ${(payloadData.average_price_in_cents / 100).toFixed(2)}
+				</p>
+			</div>
+		);
+	}
+
+	return null;
+};
 
 export default function QueryPage() {
 	const [groupBy, setGroupBy] = useState<GroupByValue | "">("");
 	const [chartType, setChartType] = useState<ChartType | "">("");
 	const [xAxis, setXAxis] = useState<AxisValue>("bucket");
 	const [yAxis, setYAxis] = useState<AxisValue>("count");
-	const [bucketSize, setBucketSize] = useState(DEFAULT_BUCKET_SIZE);
+	const [bucketSize, setBucketSize] = useState("100");
 	const [chartData, setChartData] = useState<ChartResponse | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [bucketError, setBucketError] = useState<string | null>(null);
+	const [scatterDomain, setScatterDomain] = useState<
+		[number | "auto", number | "auto"]
+	>(["auto", "auto"]);
 
+	const bucketConfig = groupBy ? BUCKET_CONFIGS[groupBy] : null;
 	const axisOptions =
 		chartType === "scatter" ? SCATTER_NUMERIC_AXES : AXIS_OPTIONS;
 	const selectedGroupByLabel = useMemo(
@@ -109,6 +179,22 @@ export default function QueryPage() {
 		() => axisOptions.find((option) => option.value === yAxis)?.label ?? "",
 		[axisOptions, yAxis],
 	);
+	const bucketDisplayValue = useMemo(() => {
+		if (!bucketConfig) {
+			return bucketSize;
+		}
+
+		const parsed = Number(bucketSize);
+		if (!Number.isFinite(parsed)) {
+			return bucketSize;
+		}
+
+		if (bucketConfig.displayValue) {
+			return bucketConfig.displayValue(parsed);
+		}
+
+		return bucketSize;
+	}, [bucketConfig, bucketSize]);
 
 	const selectedSeries = useMemo(() => {
 		if (!chartData?.points?.length) {
@@ -136,20 +222,15 @@ export default function QueryPage() {
 				average_review_count: toNumber(point.average_review_count),
 				average_price_in_cents: toNumber(point.average_price_in_cents),
 			}))
-			.filter((point) => point.x !== null && point.y !== null);
+			.filter((point) => point.x !== null && point.y !== null)
+			.sort((a, b) => (a.x as number) - (b.x as number));
 	}, [chartData, chartType, xAxis, yAxis]);
 
 	useEffect(() => {
-		console.log(
-			"Group By:",
-			groupBy,
-			"Chart Type:",
-			chartType,
-			"X Axis:",
-			xAxis,
-			"Y Axis:",
-			yAxis,
-		);
+		setScatterDomain(["auto", "auto"]);
+	}, [selectedSeries, xAxis, yAxis]);
+
+	useEffect(() => {
 		if (!groupBy || !chartType) {
 			setChartData(null);
 			return;
@@ -237,13 +318,30 @@ export default function QueryPage() {
 											<ComboboxItem
 												key={option.value}
 												value={option.label}
-												onSelect={() => setGroupBy(option.value)}
+												onSelect={() => {
+													setGroupBy(option.value);
+													setChartType("");
+													setBucketSize(
+														String(BUCKET_CONFIGS[option.value].min),
+													);
+													setBucketError(null);
+												}}
 												onClick={() => {
 													setGroupBy(option.value);
+													setChartType("");
+													setBucketSize(
+														String(BUCKET_CONFIGS[option.value].min),
+													);
+													setBucketError(null);
 												}}
 												onPointerDown={(e) => {
 													e.preventDefault();
 													setGroupBy(option.value);
+													setChartType("");
+													setBucketSize(
+														String(BUCKET_CONFIGS[option.value].min),
+													);
+													setBucketError(null);
 												}}
 											>
 												{option.label}
@@ -287,20 +385,63 @@ export default function QueryPage() {
 							</div>
 						)}
 
-						{groupBy && chartType && (
+						{groupBy && chartType && bucketConfig && (
 							<div className="space-y-2">
 								<p className="text-sm font-medium">Bucket Size</p>
-								<Input
-									type="number"
-									min={1}
-									step={1}
-									value={bucketSize}
-									onChange={(e) => setBucketSize(e.target.value)}
-									placeholder="100"
-								/>
+								<div className="flex items-center gap-2">
+									<Input
+										type="number"
+										min={bucketConfig.min}
+										max={bucketConfig.max}
+										step={bucketConfig.step}
+										value={bucketSize}
+										disabled={bucketConfig.locked}
+										onChange={(e) => {
+											const parsed = Number(e.target.value);
+											const validation = bucketSchema.safeParse(parsed);
+
+											if (!validation.success) {
+												setBucketError(
+													validation.error.issues[0]?.message ??
+														"Invalid bucket size",
+												);
+												setBucketSize(e.target.value);
+												return;
+											}
+
+											if (
+												parsed < bucketConfig.min ||
+												parsed > bucketConfig.max
+											) {
+												setBucketError(
+													`Bucket size must be between ${bucketConfig.min} and ${bucketConfig.max}`,
+												);
+												setBucketSize(String(parsed));
+												return;
+											}
+
+											setBucketError(null);
+											setBucketSize(String(parsed));
+										}}
+									/>
+									{bucketConfig.unit && (
+										<span className="text-sm text-muted-foreground">
+											{bucketConfig.unit}
+										</span>
+									)}
+								</div>
+								{bucketConfig.displayValue ? (
+									<p className="text-xs text-muted-foreground">
+										Value: {bucketDisplayValue}
+									</p>
+								) : null}
+								{bucketError && (
+									<p className="text-xs text-destructive">{bucketError}</p>
+								)}
 								<p className="text-xs text-muted-foreground">
-									Used for numeric groupings like review count, review score,
-									release date, and price.
+									{bucketConfig.locked
+										? "This grouping uses a fixed bucket size."
+										: `Allowed range: ${bucketConfig.min} to ${bucketConfig.max}.`}
 								</p>
 							</div>
 						)}
@@ -389,7 +530,7 @@ export default function QueryPage() {
 							{chartType === "bar" ? "Bar chart" : "Scatterplot"} preview
 						</CardDescription>
 					</CardHeader>
-					<CardContent className="h-[480px]">
+					<CardContent className="h-120">
 						<ResponsiveContainer width="100%" height="100%">
 							{chartType === "bar" ? (
 								<BarChart
@@ -399,8 +540,12 @@ export default function QueryPage() {
 									<CartesianGrid strokeDasharray="3 3" />
 									<XAxis dataKey="bucket" />
 									<YAxis />
-									<Tooltip />
-									<Bar dataKey={yAxis} radius={[6, 6, 0, 0]}>
+									<Tooltip
+										content={
+											<CustomTooltip active={true} payload={[]} label="" />
+										}
+									/>
+									<Bar dataKey={yAxis} radius={[0, 0, 0, 0]}>
 										{selectedSeries.map((_, index) => (
 											<Cell
 												key={`cell-${index}`}
@@ -408,18 +553,56 @@ export default function QueryPage() {
 											/>
 										))}
 									</Bar>
+									<Brush dataKey="bucket" height={30} stroke="#8884d8" />
 								</BarChart>
 							) : (
 								<ScatterChart
+									data={selectedSeries}
 									margin={{ top: 8, right: 24, left: 0, bottom: 24 }}
 								>
 									<CartesianGrid strokeDasharray="3 3" />
-									<XAxis dataKey="x" type="number" name={xAxis} />
+									<XAxis
+										dataKey="x"
+										type="number"
+										name={xAxis}
+										domain={scatterDomain}
+										allowDataOverflow={true}
+									/>
 									<YAxis dataKey="y" type="number" name={yAxis} />
-									<Tooltip cursor={{ strokeDasharray: "3 3" }} />
+
+									<Tooltip
+										content={
+											<CustomTooltip active={true} payload={[]} label="" />
+										}
+									/>
 									<Scatter
 										data={selectedSeries as Array<{ x: number; y: number }>}
 										fill="#60a5fa"
+										shape={(props: any) => (
+											<circle
+												cx={props.cx}
+												cy={props.cy}
+												r={4}
+												fill="#60a5fa"
+											/>
+										)}
+									/>
+									<Brush
+										dataKey="x"
+										height={30}
+										stroke="#8884d8"
+										onChange={(e: any) => {
+											if (
+												e.startIndex !== undefined &&
+												e.endIndex !== undefined &&
+												selectedSeries.length > 0
+											) {
+												setScatterDomain([
+													selectedSeries[e.startIndex].x as number,
+													selectedSeries[e.endIndex].x as number,
+												]);
+											}
+										}}
 									/>
 								</ScatterChart>
 							)}
