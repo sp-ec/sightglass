@@ -57,7 +57,10 @@ export type chartAggregationMode =
 	| "review_score"
 	| "release_date"
 	| "price"
-	| "tag";
+	| "tag"
+	| "supported_languages"
+	| "developer"
+	| "publisher";
 
 export const CHART_BUCKET_MIN = 1;
 export const CHART_BUCKET_MAX = 1000000;
@@ -67,15 +70,16 @@ export type chartAggregationPoint = {
 	count: number;
 	min_value: string | null;
 	max_value: string | null;
-	average_value: string | null;
-	average_review_score: number | null;
-	average_percent_positive: number | null;
-	average_review_count: number | null;
-	average_price_in_cents: number | null;
+	aggregate_value: string | null;
+	aggregate_review_score: number | null;
+	aggregate_percent_positive: number | null;
+	aggregate_review_count: number | null;
+	aggregate_price_in_cents: number | null;
 };
 
 export type chartAggregationResponse = {
 	mode: chartAggregationMode;
+	aggregate: "average" | "median";
 	bucket_size: number | null;
 	points: chartAggregationPoint[];
 };

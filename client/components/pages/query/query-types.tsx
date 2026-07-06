@@ -6,6 +6,9 @@ export const GROUP_BY_OPTIONS = [
 	{ label: "Release Date", value: "release_date" },
 	{ label: "Price", value: "price" },
 	{ label: "Tag", value: "tag" },
+	{ label: "Supported Languages", value: "supported_languages" },
+	{ label: "Developer", value: "developer" },
+	{ label: "Publisher", value: "publisher" },
 ] as const;
 
 export const CHART_TYPES = [
@@ -16,14 +19,20 @@ export const CHART_TYPES = [
 export const AXIS_OPTIONS = [
 	{ label: "Bucket", value: "bucket" },
 	{ label: "Count", value: "count" },
-	{ label: "Aggregate Value", value: "average_value" },
-	{ label: "Review Score", value: "average_review_score" },
-	{ label: "Positive %", value: "average_percent_positive" },
-	{ label: "Review Count", value: "average_review_count" },
-	{ label: "Price", value: "average_price_in_cents" },
+	{ label: "Aggregate Value", value: "aggregate_value" },
+	{ label: "Review Score", value: "aggregate_review_score" },
+	{ label: "Positive %", value: "aggregate_percent_positive" },
+	{ label: "Review Count", value: "aggregate_review_count" },
+	{ label: "Price", value: "aggregate_price_in_cents" },
 ] as const;
 
-export const BAR_COLORS = ["#60a5fa", "#34d399", "#fbbf24", "#f472b6", "#a78bfa"];
+export const BAR_COLORS = [
+	"#60a5fa",
+	"#34d399",
+	"#fbbf24",
+	"#f472b6",
+	"#a78bfa",
+];
 export const SCATTER_NUMERIC_AXES = AXIS_OPTIONS.filter(
 	(option) => option.value !== "bucket",
 );
@@ -37,6 +46,7 @@ export type ChartResponse = {
 	mode: GroupByValue;
 	bucket_size: number | null;
 	points: ChartPoint[];
+	aggregate: "average" | "median";
 };
 
 export type BucketConfig = {
@@ -49,14 +59,17 @@ export type BucketConfig = {
 };
 
 export const BUCKET_CONFIGS: Record<GroupByValue, BucketConfig> = {
-	review_count: { min: 10, max: 5_000_000, step: 10 },
+	review_count: { min: 1, max: 100_000_000, step: 10 },
 	review_score: { min: 1, max: 1, step: 1, locked: true },
-	release_date: { min: 1, max: 1825, step: 1, unit: "days" },
+	release_date: { min: 1, max: 36525, step: 1, unit: "days" },
 	price: {
-		min: 25,
-		max: 100_000,
+		min: 1,
+		max: 100_000_000,
 		step: 25,
 		displayValue: (value) => `$${(value / 100).toFixed(2)}`,
 	},
 	tag: { min: 1, max: 1, step: 1, locked: true },
+	supported_languages: { min: 1, max: 1, step: 1, locked: true },
+	developer: { min: 1, max: 1, step: 1, locked: true },
+	publisher: { min: 1, max: 1, step: 1, locked: true },
 };

@@ -90,6 +90,8 @@ export default function ScatterChart({
 						color: "#60a5fa",
 						opacity: 0.7,
 					},
+					large: true,
+					largeThreshold: 2000,
 				},
 			],
 		};

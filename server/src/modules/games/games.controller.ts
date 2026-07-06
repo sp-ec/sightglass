@@ -29,6 +29,7 @@ export const getGameChartData = async (req: Request, res: Response) => {
 			req.query.mode as string,
 			req.query.bucket_size as string | undefined,
 			req.query.aggregate as "average" | "median" | undefined,
+			req.query.tags_counted ? Number(req.query.tags_counted) : undefined,
 		);
 		if (!result) {
 			return res.status(400).json({

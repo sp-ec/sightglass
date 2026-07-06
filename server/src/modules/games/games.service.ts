@@ -113,6 +113,7 @@ export const getChartAggregation = async (
 	mode: string,
 	bucketSize: string | undefined,
 	aggregate: "average" | "median" = "average",
+	tagsCounted?: number | null,
 ) => {
 	const allowedModes: chartAggregationMode[] = [
 		"review_count",
@@ -120,6 +121,9 @@ export const getChartAggregation = async (
 		"release_date",
 		"price",
 		"tag",
+		"supported_languages",
+		"developer",
+		"publisher",
 	];
 
 	if (!allowedModes.includes(mode as chartAggregationMode)) {
@@ -135,6 +139,7 @@ export const getChartAggregation = async (
 		mode as chartAggregationMode,
 		normalizedBucketSize,
 		aggregate,
+		tagsCounted,
 	);
 
 	if (mode === "release_date") {
@@ -147,8 +152,8 @@ export const getChartAggregation = async (
 				point.max_value = new Date(
 					parseInt(point.max_value ?? "0") * 1000,
 				).toDateString();
-				point.average_value = new Date(
-					parseInt(point.average_value ?? "0") * 1000,
+				point.aggregate_value = new Date(
+					parseInt(point.aggregate_value ?? "0") * 1000,
 				).toDateString();
 			}
 			return point;

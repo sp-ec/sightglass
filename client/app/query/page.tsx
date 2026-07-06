@@ -36,6 +36,7 @@ import {
 } from "@/components/pages/query/query-types";
 
 import { ListSortDescending, ListSortAscending, Menu } from "lucide-react";
+import { QuestionTooltip } from "@/components/question-tooltip";
 
 const bucketSchema = z.number().finite().int().positive();
 
@@ -58,6 +59,7 @@ export default function QueryPage() {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [bucketError, setBucketError] = useState<string | null>(null);
+	const [tagsCounted, setTagsCounted] = useState<number | null>(10);
 
 	const bucketConfig = groupBy ? BUCKET_CONFIGS[groupBy] : null;
 	const axisOptions =
@@ -113,7 +115,7 @@ export default function QueryPage() {
 
 		if (chartType === "scatter") {
 			if (xAxis === "bucket") {
-				setXAxis("average_value");
+				setXAxis("aggregate_value");
 			}
 			if (yAxis === "bucket") {
 				setYAxis("count");
@@ -126,11 +128,14 @@ export default function QueryPage() {
 			return;
 		}
 
-		let sortedPoints = [...chartData.points];
+		console.log("Sorting chart data", sortingMode, xAxis, yAxis);
+
+		let sortedPoints = chartData.points.map((point) => ({ ...point }));
+
 		if (sortingMode === "ascending") {
 			sortedPoints.sort((a, b) => {
-				const aValue = a[yAxis];
-				const bValue = b[yAxis];
+				const aValue = Number(a[yAxis]);
+				const bValue = Number(b[yAxis]);
 
 				if (typeof aValue === "number" && typeof bValue === "number") {
 					return aValue - bValue;
@@ -139,8 +144,8 @@ export default function QueryPage() {
 			});
 		} else if (sortingMode === "descending") {
 			sortedPoints.sort((a, b) => {
-				const aValue = a[yAxis];
-				const bValue = b[yAxis];
+				const aValue = Number(a[yAxis]);
+				const bValue = Number(b[yAxis]);
 
 				if (typeof aValue === "number" && typeof bValue === "number") {
 					return bValue - aValue;
@@ -165,10 +170,10 @@ export default function QueryPage() {
 
 			try {
 				const params = new URLSearchParams({ mode: groupBy });
-				if (chartType !== "scatter") {
-					params.set("bucket_size", bucketSize);
-					params.set("aggregate", aggregateMode);
-				}
+
+				params.set("bucket_size", bucketSize);
+				params.set("aggregate", aggregateMode);
+				params.set("tags_counted", String(tagsCounted));
 
 				const response = await fetch(
 					`${process.env.NEXT_PUBLIC_API_URL}/games/chart?${params.toString()}`,
@@ -193,7 +198,7 @@ export default function QueryPage() {
 		loadChartData();
 
 		return () => controller.abort();
-	}, [groupBy, chartType, bucketSize, aggregateMode]);
+	}, [groupBy, chartType, bucketSize, aggregateMode, tagsCounted]);
 
 	const canRenderChart = Boolean(
 		groupBy && chartType && chartData?.points.length,
@@ -294,7 +299,10 @@ export default function QueryPage() {
 
 						{groupBy && chartType && bucketConfig && (
 							<div className="space-y-2">
-								<p className="text-sm font-medium">Bucket Size</p>
+								<p className="text-sm font-medium flex flex-row gap-1">
+									Bucket Size{" "}
+									<QuestionTooltip message="The range of values to include in each bucket. If the bucket size is 10, values from 0-9 will be included in the first bucket, 10-19 in the second, and so on." />
+								</p>
 								<div className="flex items-center gap-2">
 									<Input
 										type="number"
@@ -337,19 +345,9 @@ export default function QueryPage() {
 										</span>
 									)}
 								</div>
-								{bucketConfig.displayValue ? (
-									<p className="text-xs text-muted-foreground">
-										Value: {bucketDisplayValue}
-									</p>
-								) : null}
 								{bucketError && (
 									<p className="text-xs text-destructive">{bucketError}</p>
 								)}
-								<p className="text-xs text-muted-foreground">
-									{bucketConfig.locked
-										? "This grouping uses a fixed bucket size."
-										: `Allowed range: ${bucketConfig.min} to ${bucketConfig.max}.`}
-								</p>
 							</div>
 						)}
 					</div>
@@ -472,6 +470,25 @@ export default function QueryPage() {
 									</Button>
 								</ButtonGroup>
 							</div>
+							{groupBy === "tag" && (
+								<div className="space-y-2">
+									<p className="text-sm font-medium flex flex-row gap-1">
+										Tags Counted{" "}
+										<QuestionTooltip message="The number of tags, sorted by weight, to include when aggregating data." />
+									</p>
+									<Input
+										type="number"
+										min={1}
+										max={1000}
+										step={1}
+										value={tagsCounted ?? 0}
+										onChange={(e) => {
+											const parsed = Number(e.target.value);
+											setTagsCounted(parsed);
+										}}
+									/>
+								</div>
+							)}
 						</div>
 					)}
 				</CardContent>
@@ -487,9 +504,12 @@ export default function QueryPage() {
 			{canRenderChart && (
 				<Card>
 					<CardHeader>
-						<CardTitle>{selectedGroupByLabel}</CardTitle>
+						<CardTitle>
+							{selectedYAxisLabel} vs {xAxisLabel} by {selectedGroupByLabel}
+						</CardTitle>
 						<CardDescription>
-							{chartType === "bar" ? "Bar chart" : "Scatterplot"}
+							{chartType === "bar" ? "Bar Chart" : "Scatterplot"}, aggregated
+							with {aggregateMode} values, bucket size: {bucketDisplayValue}
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="h-120">

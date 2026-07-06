@@ -84,6 +84,8 @@ export default function BarChart({
 			series: [
 				{
 					type: "bar",
+					large: true,
+					largeThreshold: 2000,
 					data: seriesData,
 					itemStyle: {
 						color: "#60a5fa",
