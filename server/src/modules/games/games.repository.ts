@@ -139,30 +139,13 @@ const getBucketSize = (bucketSize: number | undefined | null) => {
 	return Math.min(CHART_BUCKET_MAX, Math.max(CHART_BUCKET_MIN, bucketSize));
 };
 
-export const getGameChartAggregation = async (
-	mode: chartAggregationMode,
-	bucketSize?: number | null,
-) => {
-	const fragment = aggregationFragments[mode];
-	let normalizedBucketSize = getBucketSize(bucketSize);
-	const numericBucketModes = [
-		"review_count",
-		"review_score",
-		"release_date",
-		"price",
-	] as const;
-	const isNumericMode = numericBucketModes.includes(
-		mode as (typeof numericBucketModes)[number],
-	);
-
-	if (mode === "release_date" && normalizedBucketSize !== null) {
-		//1 unit = 1 day, convert to seconds for epoch time
-		normalizedBucketSize *= 86400;
-	}
-
-	const result = await pool.query(
-		isNumericMode
-			? `WITH numeric_games AS (
+const aggregateAverage = (
+	fragment: any,
+	isNumericMode: boolean,
+	normalizedBucketSize: number,
+): string => {
+	return isNumericMode
+		? `WITH numeric_games AS (
                 SELECT
                     ${fragment.valueSql} AS value,
                     reviews.review_score AS review_score,
@@ -196,7 +179,7 @@ export const getGameChartAggregation = async (
             FROM aggregated_games
             GROUP BY bucket
             ORDER BY min_value ASC;`
-			: `WITH aggregated_games AS (
+		: `WITH aggregated_games AS (
                 SELECT
                     ${fragment.bucketSql} AS bucket,
                     ${fragment.valueSql} AS value,
@@ -220,7 +203,102 @@ export const getGameChartAggregation = async (
                 ROUND(AVG(price_in_cents), 2)::numeric AS average_price_in_cents
             FROM aggregated_games
             GROUP BY bucket
-            ORDER BY min_value ASC;`,
+            ORDER BY min_value ASC;`;
+};
+
+const aggregateMedian = (
+	fragment: any,
+	isNumericMode: boolean,
+	normalizedBucketSize: number,
+): string => {
+	return isNumericMode
+		? `WITH numeric_games AS (
+                SELECT
+                    ${fragment.valueSql} AS value,
+                    reviews.review_score AS review_score,
+                    reviews.percent_positive AS percent_positive,
+                    reviews.review_count AS review_count,
+                    games.price_in_cents AS price_in_cents
+                FROM games
+                LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
+                ${fragment.joinSql || ""}
+            ),
+            aggregated_games AS (
+                SELECT
+                    FLOOR(value / ${normalizedBucketSize}) * ${normalizedBucketSize} AS bucket,
+                    value,
+                    review_score,
+                    percent_positive,
+                    review_count,
+                    price_in_cents
+                FROM numeric_games
+            )
+            SELECT
+                bucket::text AS bucket,
+                COUNT(*)::int AS count,
+                MIN(value)::numeric AS min_value,
+                MAX(value)::numeric AS max_value,
+                ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY value))::numeric, 2) AS average_value,
+                ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY review_score))::numeric, 2) AS average_review_score,
+                ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY percent_positive))::numeric, 2) AS average_percent_positive,
+                ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY review_count))::numeric, 2) AS average_review_count,
+                ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price_in_cents))::numeric, 2) AS average_price_in_cents
+            FROM aggregated_games
+            GROUP BY bucket
+            ORDER BY min_value ASC;`
+		: `WITH aggregated_games AS (
+                SELECT
+                    ${fragment.bucketSql} AS bucket,
+                    ${fragment.valueSql} AS value,
+                    reviews.review_score AS review_score,
+                    reviews.percent_positive AS percent_positive,
+                    reviews.review_count AS review_count,
+                    games.price_in_cents AS price_in_cents
+                FROM games
+                LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
+                ${fragment.joinSql || ""}
+            )
+            SELECT
+                bucket::text AS bucket,
+                COUNT(*)::int AS count,
+                MIN(value)::numeric AS min_value,
+                MAX(value)::numeric AS max_value,
+                ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY value))::numeric, 2) AS average_value,
+                ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY review_score))::numeric, 2) AS average_review_score,
+                ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY percent_positive))::numeric, 2) AS average_percent_positive,
+                ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY review_count))::numeric, 2) AS average_review_count,
+                ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price_in_cents))::numeric, 2) AS average_price_in_cents
+            FROM aggregated_games
+            GROUP BY bucket
+            ORDER BY min_value ASC;`;
+};
+
+export const getGameChartAggregation = async (
+	mode: chartAggregationMode,
+	bucketSize?: number | null,
+	aggregate: "average" | "median" = "average",
+) => {
+	const fragment = aggregationFragments[mode];
+	let normalizedBucketSize = getBucketSize(bucketSize);
+	const numericBucketModes = [
+		"review_count",
+		"review_score",
+		"release_date",
+		"price",
+	] as const;
+	const isNumericMode = numericBucketModes.includes(
+		mode as (typeof numericBucketModes)[number],
+	);
+
+	if (mode === "release_date" && normalizedBucketSize !== null) {
+		//1 unit = 1 day, convert to seconds for epoch time
+		normalizedBucketSize *= 86400;
+	}
+
+	const result = await pool.query(
+		aggregate === "median"
+			? aggregateMedian(fragment, isNumericMode, normalizedBucketSize)
+			: aggregateAverage(fragment, isNumericMode, normalizedBucketSize),
 	);
 
 	return {

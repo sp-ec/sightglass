@@ -20,6 +20,8 @@ import {
 import { Input } from "@/components/ui/input";
 import ScatterChart from "@/components/charts/scatter-chart";
 import BarChart from "@/components/charts/bar-chart";
+import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 
 import {
 	GROUP_BY_OPTIONS,
@@ -27,61 +29,15 @@ import {
 	AXIS_OPTIONS,
 	BUCKET_CONFIGS,
 	SCATTER_NUMERIC_AXES,
-	BAR_COLORS,
 	GroupByValue,
 	ChartType,
 	AxisValue,
-	ChartPoint,
 	ChartResponse,
-	BucketConfig,
 } from "@/components/pages/query/query-types";
 
+import { ListSortDescending, ListSortAscending, Menu } from "lucide-react";
+
 const bucketSchema = z.number().finite().int().positive();
-
-const toNumber = (value: string | number | null | undefined) => {
-	if (value === null || value === undefined || value === "") {
-		return null;
-	}
-	const parsed = Number(value);
-	return Number.isFinite(parsed) ? parsed : null;
-};
-
-const CustomTooltip = ({
-	active,
-	payload,
-	label,
-}: {
-	active: any;
-	payload: any;
-	label: any;
-}) => {
-	if (active && payload && payload.length) {
-		const payloadData = payload[0].payload;
-		return (
-			<div className="bg-card p-4 border rounded shadow-md">
-				<p className="font-bold mb-2">Bucket: {payloadData.bucket}</p>
-				<p className="text-sm text-gray-500">Count: {payloadData.count}</p>
-				<p className="text-sm text-gray-500">
-					Range: {payloadData.min_value} - {payloadData.max_value}
-				</p>
-				<p className="text-sm text-gray-500">
-					Avg. Review Count: {payloadData.average_review_count}
-				</p>
-				<p className="text-sm text-gray-500">
-					Avg. Review Score: {payloadData.average_review_score}
-				</p>
-				<p className="text-sm text-gray-500">
-					Avg. % Positive: {payloadData.average_percent_positive}
-				</p>
-				<p className="text-sm text-gray-500">
-					Avg. Price: ${(payloadData.average_price_in_cents / 100).toFixed(2)}
-				</p>
-			</div>
-		);
-	}
-
-	return null;
-};
 
 export default function QueryPage() {
 	const [groupBy, setGroupBy] = useState<GroupByValue | "">("");
@@ -89,7 +45,16 @@ export default function QueryPage() {
 	const [xAxis, setXAxis] = useState<AxisValue>("bucket");
 	const [yAxis, setYAxis] = useState<AxisValue>("count");
 	const [bucketSize, setBucketSize] = useState("100");
+	const [aggregateMode, setAggregateMode] = useState<"average" | "median">(
+		"average",
+	);
+	const [sortingMode, setSortingMode] = useState<
+		"flat" | "ascending" | "descending"
+	>("flat");
 	const [chartData, setChartData] = useState<ChartResponse | null>(null);
+	const [sortedChartData, setSortedChartData] = useState<ChartResponse | null>(
+		null,
+	);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [bucketError, setBucketError] = useState<string | null>(null);
@@ -134,43 +99,6 @@ export default function QueryPage() {
 		return bucketSize;
 	}, [bucketConfig, bucketSize]);
 
-	const selectedSeries = useMemo(() => {
-		if (!chartData?.points?.length) {
-			return [] as any[];
-		}
-
-		if (chartType === "bar") {
-			if (groupBy === "tag") {
-				console.log(chartData.points);
-				chartData.points.sort(
-					(a, b) =>
-						(toNumber(a[yAxis]) as number) - (toNumber(b[yAxis]) as number),
-				);
-			}
-			return chartData.points.map((point, index) => ({
-				...point,
-				color: BAR_COLORS[index % BAR_COLORS.length],
-			}));
-		}
-
-		return chartData.points
-			.map((point) => ({
-				x: toNumber(point[xAxis]),
-				y: toNumber(point[yAxis]),
-				bucket: point.bucket,
-				count: toNumber(point.count),
-				min_value: toNumber(point.min_value),
-				max_value: toNumber(point.max_value),
-				average_value: toNumber(point.average_value),
-				average_review_score: toNumber(point.average_review_score),
-				average_percent_positive: toNumber(point.average_percent_positive),
-				average_review_count: toNumber(point.average_review_count),
-				average_price_in_cents: toNumber(point.average_price_in_cents),
-			}))
-			.filter((point) => point.x !== null && point.y !== null)
-			.sort((a, b) => (a.x as number) - (b.x as number));
-	}, [chartData, chartType, xAxis, yAxis]);
-
 	useEffect(() => {
 		if (chartType === "bar" && xAxis !== "bucket") {
 			setXAxis("bucket");
@@ -194,6 +122,37 @@ export default function QueryPage() {
 	}, [groupBy, chartType, xAxis, yAxis]);
 
 	useEffect(() => {
+		if (!chartData || !sortingMode) {
+			return;
+		}
+
+		let sortedPoints = [...chartData.points];
+		if (sortingMode === "ascending") {
+			sortedPoints.sort((a, b) => {
+				const aValue = a[yAxis];
+				const bValue = b[yAxis];
+
+				if (typeof aValue === "number" && typeof bValue === "number") {
+					return aValue - bValue;
+				}
+				return 0;
+			});
+		} else if (sortingMode === "descending") {
+			sortedPoints.sort((a, b) => {
+				const aValue = a[yAxis];
+				const bValue = b[yAxis];
+
+				if (typeof aValue === "number" && typeof bValue === "number") {
+					return bValue - aValue;
+				}
+				return 0;
+			});
+		}
+
+		setSortedChartData({ ...chartData, points: sortedPoints });
+	}, [chartData, sortingMode, xAxis, yAxis]);
+
+	useEffect(() => {
 		if (!groupBy || !chartType) {
 			setChartData(null);
 			return;
@@ -208,6 +167,7 @@ export default function QueryPage() {
 				const params = new URLSearchParams({ mode: groupBy });
 				if (chartType !== "scatter") {
 					params.set("bucket_size", bucketSize);
+					params.set("aggregate", aggregateMode);
 				}
 
 				const response = await fetch(
@@ -233,7 +193,7 @@ export default function QueryPage() {
 		loadChartData();
 
 		return () => controller.abort();
-	}, [groupBy, chartType, bucketSize]);
+	}, [groupBy, chartType, bucketSize, aggregateMode]);
 
 	const canRenderChart = Boolean(
 		groupBy && chartType && chartData?.points.length,
@@ -460,14 +420,68 @@ export default function QueryPage() {
 							</div>
 						</div>
 					)}
+
+					{groupBy && chartType && (
+						<div className="grid gap-4 md:grid-cols-6">
+							<div className="space-y-2">
+								<p className="text-sm font-medium">Aggregate Mode</p>
+								<ButtonGroup>
+									<Button
+										variant="outline"
+										disabled={aggregateMode === "average"}
+										onClick={() => setAggregateMode("average")}
+									>
+										Average
+									</Button>
+									<Button
+										variant="outline"
+										disabled={aggregateMode === "median"}
+										onClick={() => setAggregateMode("median")}
+									>
+										Median
+									</Button>
+								</ButtonGroup>
+							</div>
+							<div className="space-y-2">
+								<p className="text-sm font-medium">Sorting</p>
+								<ButtonGroup>
+									<Button
+										variant="outline"
+										disabled={sortingMode === "flat" || chartType === "scatter"}
+										onClick={() => setSortingMode("flat")}
+									>
+										<Menu />
+									</Button>
+									<Button
+										variant="outline"
+										disabled={
+											sortingMode === "ascending" || chartType === "scatter"
+										}
+										onClick={() => setSortingMode("ascending")}
+									>
+										<ListSortAscending />
+									</Button>
+									<Button
+										variant="outline"
+										disabled={
+											sortingMode === "descending" || chartType === "scatter"
+										}
+										onClick={() => setSortingMode("descending")}
+									>
+										<ListSortDescending />
+									</Button>
+								</ButtonGroup>
+							</div>
+						</div>
+					)}
 				</CardContent>
 			</Card>
 
-			{loading && (
+			{/* {loading && (
 				<div className="text-sm text-muted-foreground">
 					Loading chart data...
 				</div>
-			)}
+			)} */}
 			{error && <div className="text-sm text-destructive">{error}</div>}
 
 			{canRenderChart && (
@@ -475,19 +489,19 @@ export default function QueryPage() {
 					<CardHeader>
 						<CardTitle>{selectedGroupByLabel}</CardTitle>
 						<CardDescription>
-							{chartType === "bar" ? "Bar chart" : "Scatterplot"} preview
+							{chartType === "bar" ? "Bar chart" : "Scatterplot"}
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="h-120">
 						{chartType === "bar" ? (
 							<BarChart
-								data={chartData || null}
+								data={sortedChartData || null}
 								xAxisKey={xAxis}
 								yAxisKey={yAxis}
 							/>
 						) : (
 							<ScatterChart
-								data={chartData || null}
+								data={sortedChartData || null}
 								xAxisKey={xAxis}
 								yAxisKey={yAxis}
 							/>

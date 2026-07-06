@@ -16,11 +16,11 @@ export const CHART_TYPES = [
 export const AXIS_OPTIONS = [
 	{ label: "Bucket", value: "bucket" },
 	{ label: "Count", value: "count" },
-	{ label: "Average Value", value: "average_value" },
-	{ label: "Average Review Score", value: "average_review_score" },
-	{ label: "Average Positive %", value: "average_percent_positive" },
-	{ label: "Average Review Count", value: "average_review_count" },
-	{ label: "Average Price", value: "average_price_in_cents" },
+	{ label: "Aggregate Value", value: "average_value" },
+	{ label: "Review Score", value: "average_review_score" },
+	{ label: "Positive %", value: "average_percent_positive" },
+	{ label: "Review Count", value: "average_review_count" },
+	{ label: "Price", value: "average_price_in_cents" },
 ] as const;
 
 export const BAR_COLORS = ["#60a5fa", "#34d399", "#fbbf24", "#f472b6", "#a78bfa"];

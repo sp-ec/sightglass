@@ -112,6 +112,7 @@ export const fetchGameById = async (appId: string) => {
 export const getChartAggregation = async (
 	mode: string,
 	bucketSize: string | undefined,
+	aggregate: "average" | "median" = "average",
 ) => {
 	const allowedModes: chartAggregationMode[] = [
 		"review_count",
@@ -133,6 +134,7 @@ export const getChartAggregation = async (
 	let chartData = await getGameChartAggregation(
 		mode as chartAggregationMode,
 		normalizedBucketSize,
+		aggregate,
 	);
 
 	if (mode === "release_date") {
