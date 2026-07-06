@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BarChart3, ScatterChart as ScatterChartIcon } from "lucide-react";
 import { z } from "zod";
 import {
 	Card,
@@ -10,7 +9,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
 	Combobox,
 	ComboboxContent,
@@ -20,81 +18,23 @@ import {
 	ComboboxList,
 } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
+import ScatterChart from "@/components/charts/scatter-chart";
+import BarChart from "@/components/charts/bar-chart";
+
 import {
-	Bar,
-	BarChart,
-	CartesianGrid,
-	Cell,
-	ResponsiveContainer,
-	Scatter,
-	ScatterChart,
-	Tooltip,
-	XAxis,
-	YAxis,
-	ZAxis,
-	Brush,
-} from "recharts";
-
-const GROUP_BY_OPTIONS = [
-	{ label: "Review Count", value: "review_count" },
-	{ label: "Review Score", value: "review_score" },
-	{ label: "Release Date", value: "release_date" },
-	{ label: "Price", value: "price" },
-	{ label: "Tag", value: "tag" },
-] as const;
-
-const CHART_TYPES = [
-	{ label: "Bar Chart", value: "bar", icon: BarChart3 },
-	{ label: "Scatterplot", value: "scatter", icon: ScatterChartIcon },
-] as const;
-
-const AXIS_OPTIONS = [
-	{ label: "Bucket", value: "bucket" },
-	{ label: "Count", value: "count" },
-	{ label: "Average Value", value: "average_value" },
-	{ label: "Average Review Score", value: "average_review_score" },
-	{ label: "Average Positive %", value: "average_percent_positive" },
-	{ label: "Average Review Count", value: "average_review_count" },
-	{ label: "Average Price", value: "average_price_in_cents" },
-] as const;
-
-const BAR_COLORS = ["#60a5fa", "#34d399", "#fbbf24", "#f472b6", "#a78bfa"];
-const SCATTER_NUMERIC_AXES = AXIS_OPTIONS.filter(
-	(option) => option.value !== "bucket",
-);
-
-type GroupByValue = (typeof GROUP_BY_OPTIONS)[number]["value"];
-type ChartType = (typeof CHART_TYPES)[number]["value"];
-type AxisValue = (typeof AXIS_OPTIONS)[number]["value"];
-type ChartPoint = Record<string, string | number | null>;
-
-type ChartResponse = {
-	mode: GroupByValue;
-	bucket_size: number | null;
-	points: ChartPoint[];
-};
-
-type BucketConfig = {
-	min: number;
-	max: number;
-	step: number;
-	unit?: string;
-	locked?: boolean;
-	displayValue?: (value: number) => string;
-};
-
-const BUCKET_CONFIGS: Record<GroupByValue, BucketConfig> = {
-	review_count: { min: 10, max: 5_000_000, step: 10 },
-	review_score: { min: 1, max: 1, step: 1, locked: true },
-	release_date: { min: 1, max: 1825, step: 1, unit: "days" },
-	price: {
-		min: 25,
-		max: 100_000,
-		step: 25,
-		displayValue: (value) => `$${(value / 100).toFixed(2)}`,
-	},
-	tag: { min: 1, max: 1, step: 1, locked: true },
-};
+	GROUP_BY_OPTIONS,
+	CHART_TYPES,
+	AXIS_OPTIONS,
+	BUCKET_CONFIGS,
+	SCATTER_NUMERIC_AXES,
+	BAR_COLORS,
+	GroupByValue,
+	ChartType,
+	AxisValue,
+	ChartPoint,
+	ChartResponse,
+	BucketConfig,
+} from "@/components/pages/query/query-types";
 
 const bucketSchema = z.number().finite().int().positive();
 
@@ -153,9 +93,6 @@ export default function QueryPage() {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [bucketError, setBucketError] = useState<string | null>(null);
-	const [scatterDomain, setScatterDomain] = useState<
-		[number | "auto", number | "auto"]
-	>(["auto", "auto"]);
 
 	const bucketConfig = groupBy ? BUCKET_CONFIGS[groupBy] : null;
 	const axisOptions =
@@ -173,6 +110,9 @@ export default function QueryPage() {
 		() => axisOptions.find((option) => option.value === xAxis)?.label ?? "",
 		[axisOptions, xAxis],
 	);
+	const isBarChart = chartType === "bar";
+	const xAxisLabel = isBarChart ? "Bucket" : selectedXAxisLabel;
+	const xAxisDisabled = isBarChart;
 	const selectedYAxisLabel = useMemo(
 		() => axisOptions.find((option) => option.value === yAxis)?.label ?? "",
 		[axisOptions, yAxis],
@@ -231,20 +171,11 @@ export default function QueryPage() {
 			.sort((a, b) => (a.x as number) - (b.x as number));
 	}, [chartData, chartType, xAxis, yAxis]);
 
-	const visibleScatterSeries = useMemo(() => {
-		if (scatterDomain[0] === "auto" || scatterDomain[1] === "auto") {
-			return selectedSeries;
-		}
-		return selectedSeries.filter(
-			(point) =>
-				(point.x as number) >= (scatterDomain[0] as number) &&
-				(point.x as number) <= (scatterDomain[1] as number),
-		);
-	}, [selectedSeries, scatterDomain]);
-
 	useEffect(() => {
-		setScatterDomain(["auto", "auto"]);
-	}, [selectedSeries, xAxis, yAxis]);
+		if (chartType === "bar" && xAxis !== "bucket") {
+			setXAxis("bucket");
+		}
+	}, [chartType, xAxis]);
 
 	useEffect(() => {
 		if (!groupBy || !chartType) {
@@ -470,7 +401,8 @@ export default function QueryPage() {
 								<Combobox items={axisOptions}>
 									<ComboboxInput
 										placeholder="Choose x axis"
-										value={selectedXAxisLabel}
+										value={xAxisLabel}
+										disabled={xAxisDisabled}
 									/>
 									<ComboboxContent>
 										<ComboboxEmpty>No axis options found.</ComboboxEmpty>
@@ -547,97 +479,19 @@ export default function QueryPage() {
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="h-120">
-						<ResponsiveContainer width="100%" height="100%">
-							{chartType === "bar" ? (
-								<BarChart
-									data={selectedSeries}
-									margin={{ top: 8, right: 24, left: 0, bottom: 24 }}
-								>
-									<CartesianGrid strokeDasharray="3 3" />
-									<XAxis dataKey="bucket" />
-									<YAxis />
-									<Tooltip
-										content={
-											<CustomTooltip active={true} payload={[]} label="" />
-										}
-										isAnimationActive={false}
-									/>
-									<Bar dataKey={yAxis} radius={[0, 0, 0, 0]}>
-										{selectedSeries.map((_, index) => (
-											<Cell
-												key={`cell-${index}`}
-												fill={BAR_COLORS[index % BAR_COLORS.length]}
-											/>
-										))}
-									</Bar>
-									<Brush
-										dataKey="bucket"
-										height={30}
-										stroke="oklch(68.5% 0.169 237.323)"
-										fill="oklch(0.21 0.006 285.885)"
-									/>
-								</BarChart>
-							) : (
-								<ScatterChart
-									data={selectedSeries}
-									margin={{ top: 8, right: 24, left: 0, bottom: 24 }}
-								>
-									<CartesianGrid strokeDasharray="3 3" />
-									<XAxis
-										dataKey="x"
-										type="number"
-										name={xAxis}
-										domain={scatterDomain}
-										allowDataOverflow={true}
-									/>
-									<YAxis dataKey="y" type="number" name={yAxis} />
-									<ZAxis range={[16, 16]} />
-									<Tooltip
-										content={
-											<CustomTooltip active={true} payload={[]} label="" />
-										}
-										isAnimationActive={false}
-									/>
-									<Scatter
-										isAnimationActive={false}
-										data={
-											visibleScatterSeries as Array<{ x: number; y: number }>
-										}
-										fill="#60a5fa"
-										shape={(props: any) => (
-											<circle
-												cx={props.cx}
-												cy={props.cy}
-												r={4}
-												fill="#60a5fa"
-											/>
-										)}
-									/>
-									<Brush
-										dataKey="x"
-										height={30}
-										stroke="oklch(68.5% 0.169 237.323)"
-										fill="oklch(0.21 0.006 285.885)"
-										onChange={(e: any) => {
-											if (
-												e.startIndex !== undefined &&
-												e.endIndex !== undefined
-											) {
-												const newMin = selectedSeries[e.startIndex].x as number;
-												const newMax = selectedSeries[e.endIndex].x as number;
-
-												setScatterDomain((prev) => {
-													if (prev[0] === newMin && prev[1] === newMax) {
-														return prev;
-													}
-													return [newMin, newMax];
-												});
-											}
-										}}
-									/>
-								</ScatterChart>
-							)}
-						</ResponsiveContainer>
+						{chartType === "bar" ? (
+							<BarChart
+								data={chartData || null}
+								xAxisKey={xAxis}
+								yAxisKey={yAxis}
+							/>
+						) : (
+							<ScatterChart
+								data={chartData || null}
+								xAxisKey={xAxis}
+								yAxisKey={yAxis}
+							/>
+						)}
 					</CardContent>
 				</Card>
 			)}

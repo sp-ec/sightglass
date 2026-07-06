@@ -65,9 +65,9 @@ export const CHART_BUCKET_MAX = 1000000;
 export type chartAggregationPoint = {
 	bucket: string;
 	count: number;
-	min_value: number | null;
-	max_value: number | null;
-	average_value: number | null;
+	min_value: string | null;
+	max_value: string | null;
+	average_value: string | null;
 	average_review_score: number | null;
 	average_percent_positive: number | null;
 	average_review_count: number | null;

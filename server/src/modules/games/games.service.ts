@@ -130,8 +130,29 @@ export const getChartAggregation = async (
 		? Math.min(CHART_BUCKET_MAX, Math.max(CHART_BUCKET_MIN, parsedBucketSize))
 		: null;
 
-	return await getGameChartAggregation(
+	let chartData = await getGameChartAggregation(
 		mode as chartAggregationMode,
 		normalizedBucketSize,
 	);
+
+	if (mode === "release_date") {
+		let chartPoints = chartData.points.map((point) => {
+			if (point.bucket !== null) {
+				point.bucket = new Date(parseInt(point.bucket) * 1000).toDateString();
+				point.min_value = new Date(
+					parseInt(point.min_value ?? "0") * 1000,
+				).toDateString();
+				point.max_value = new Date(
+					parseInt(point.max_value ?? "0") * 1000,
+				).toDateString();
+				point.average_value = new Date(
+					parseInt(point.average_value ?? "0") * 1000,
+				).toDateString();
+			}
+			return point;
+		});
+		return { ...chartData, points: chartPoints };
+	}
+
+	return chartData;
 };
