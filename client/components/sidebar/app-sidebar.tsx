@@ -8,28 +8,54 @@ import {
 	SidebarMenuItem,
 	SidebarMenuButton,
 } from "@/components/ui/sidebar";
-import { Gamepad2, CloudSync, LibraryBig, SquarePlus } from "lucide-react";
-import { NavData } from "./nav-data";
-import { NavQueries } from "./nav-queries";
+import {
+	Gamepad2,
+	CloudSync,
+	LibraryBig,
+	SquarePlus,
+	ChartPie,
+	LayoutDashboard,
+	BriefcaseBusiness,
+	Tag,
+	Telescope,
+} from "lucide-react";
+import { NavSection } from "./nav-section";
 
 const data = {
-	navData: [
+	analytics: [
+		{
+			name: "Dashboard",
+			url: "query",
+			icon: LayoutDashboard,
+		},
+		{
+			name: "Chart Creator",
+			url: "query",
+			icon: ChartPie,
+		},
+	],
+	market: [
+		{
+			name: "Games List",
+			url: "browse",
+			icon: Gamepad2,
+		},
+		{
+			name: "Developers & Publishers",
+			url: "browse",
+			icon: BriefcaseBusiness,
+		},
+		{
+			name: "Tags & Genres",
+			url: "browse",
+			icon: Tag,
+		},
+	],
+	administration: [
 		{
 			name: "Sync Steam Data",
 			url: "sync",
 			icon: CloudSync,
-		},
-		{
-			name: "Browse Games",
-			url: "browse",
-			icon: LibraryBig,
-		},
-	],
-	queryData: [
-		{
-			name: "New Query",
-			url: "query",
-			icon: SquarePlus,
 		},
 	],
 };
@@ -43,11 +69,13 @@ export function AppSidebar() {
 						<SidebarMenuButton size="lg" asChild>
 							<a href="#">
 								<div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-									<Gamepad2 className="size-4" />
+									<Telescope className="size-4" />
 								</div>
-								<div className="flex flex-col gap-0.5 leading-none">
-									<span className="text-sm font-semibold">Steam Analyzer</span>
-									<span className="text-xs opacity-50">v0.0.1</span>
+								<div className="grid flex-1 text-left text-sm leading-tight">
+									<span className="truncate font-medium">SteamScope</span>
+									<span className="truncate text-xs text-muted-foreground">
+										v0.0.1
+									</span>
 								</div>
 							</a>
 						</SidebarMenuButton>
@@ -55,8 +83,9 @@ export function AppSidebar() {
 				</SidebarMenu>
 			</SidebarHeader>
 			<SidebarContent>
-				<NavData sections={data.navData} />
-				<NavQueries sections={data.queryData} />
+				<NavSection title="Workspace & Analytics" sections={data.analytics} />
+				<NavSection title="Market Database" sections={data.market} />
+				<NavSection title="Administration" sections={data.administration} />
 			</SidebarContent>
 			<SidebarFooter />
 		</Sidebar>

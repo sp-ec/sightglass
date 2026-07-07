@@ -22,6 +22,7 @@ import ScatterChart from "@/components/charts/scatter-chart";
 import BarChart from "@/components/charts/bar-chart";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import {
 	GROUP_BY_OPTIONS,
@@ -37,6 +38,7 @@ import {
 
 import { ListSortDescending, ListSortAscending, Menu } from "lucide-react";
 import { QuestionTooltip } from "@/components/question-tooltip";
+import { UpdatingBadge } from "@/components/updating-badge";
 
 const bucketSchema = z.number().finite().int().positive();
 
@@ -200,9 +202,7 @@ export default function QueryPage() {
 		return () => controller.abort();
 	}, [groupBy, chartType, bucketSize, aggregateMode, tagsCounted]);
 
-	const canRenderChart = Boolean(
-		groupBy && chartType && chartData?.points.length,
-	);
+	const canRenderChart = Boolean(groupBy && chartType);
 
 	return (
 		<div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -494,18 +494,14 @@ export default function QueryPage() {
 				</CardContent>
 			</Card>
 
-			{/* {loading && (
-				<div className="text-sm text-muted-foreground">
-					Loading chart data...
-				</div>
-			)} */}
 			{error && <div className="text-sm text-destructive">{error}</div>}
 
 			{canRenderChart && (
 				<Card>
 					<CardHeader>
-						<CardTitle>
-							{selectedYAxisLabel} vs {xAxisLabel} by {selectedGroupByLabel}
+						<CardTitle className="flex flex-row gap-2 items-center">
+							{selectedYAxisLabel} vs {xAxisLabel} by {selectedGroupByLabel}{" "}
+							{loading && <UpdatingBadge />}
 						</CardTitle>
 						<CardDescription>
 							{chartType === "bar" ? "Bar Chart" : "Scatterplot"}, aggregated

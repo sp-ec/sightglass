@@ -25,9 +25,10 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
-export function NavData({
-  sections,
+export function NavSection({
+  title, sections,
 }: {
+  title: string,
   sections: {
     name: string
     url: string
@@ -38,7 +39,7 @@ export function NavData({
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-      <SidebarGroupLabel>Data Management</SidebarGroupLabel>
+      <SidebarGroupLabel>{title}</SidebarGroupLabel>
       <SidebarMenu>
         {sections.map((item) => (
           <SidebarMenuItem key={item.name}>
