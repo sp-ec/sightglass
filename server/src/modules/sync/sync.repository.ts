@@ -77,6 +77,7 @@ export const saveSteamGames = async (storeItems: any[]) => {
 				appId,
 				item.name ?? null,
 				item.type ?? null,
+				item.related_items?.parent_appid ?? null,
 				item.store_url_path ?? null,
 				unixToTimestamp(item.release?.steam_release_date),
 				bestPurchaseOption?.original_price_in_cents ??
@@ -138,6 +139,7 @@ export const saveSteamGames = async (storeItems: any[]) => {
 				"app_id",
 				"name",
 				"type",
+				"parent_app_id",
 				"store_url_path",
 				"steam_release_date",
 				"price_in_cents",
@@ -418,6 +420,39 @@ export const upsertTags = async (tags: { tagid: number; name: string }[]) => {
         INSERT INTO tags (id, name) 
         VALUES ${placeholders} 
         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
+    `;
+
+	const result = await pool.query(query, values);
+	return result.rows[0];
+};
+
+export const upsertCategories = async (
+	categories: {
+		categoryid: number;
+		type: number;
+		name: string;
+		image_path: string;
+	}[],
+) => {
+	if (categories.length === 0) return null;
+
+	const values: any[] = [];
+	const placeholders = categories
+		.map((category, i) => {
+			values.push(
+				category.categoryid,
+				category.type,
+				category.name,
+				category.image_path,
+			);
+			return `($${i * 4 + 1}, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4})`;
+		})
+		.join(", ");
+
+	const query = `
+        INSERT INTO categories (id, type, name, image_path) 
+        VALUES ${placeholders} 
+        ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type, name = EXCLUDED.name, image_path = EXCLUDED.image_path
     `;
 
 	const result = await pool.query(query, values);

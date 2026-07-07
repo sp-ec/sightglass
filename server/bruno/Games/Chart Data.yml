@@ -5,13 +5,19 @@ info:
 
 http:
   method: GET
-  url: "{{api_url}}/games/chart?mode=tag&bucket_size=500"
+  url: "{{api_url}}/games/chart?mode=tag&bucket_size=1&aggregate=average&tags_counted=5"
   params:
     - name: mode
       value: tag
       type: query
     - name: bucket_size
-      value: "500"
+      value: "1"
+      type: query
+    - name: aggregate
+      value: average
+      type: query
+    - name: tags_counted
+      value: "5"
       type: query
   auth: inherit
 

@@ -2,7 +2,7 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE TABLE IF NOT EXISTS games (
     app_id INTEGER PRIMARY KEY UNIQUE NOT NULL,
-    name VARCHAR(255),
+    name VARCHAR(1000) NOT NULL,
     type INTEGER,
     parent_app_id INTEGER,
     store_url_path TEXT,
@@ -50,13 +50,22 @@ CREATE TABLE IF NOT EXISTS game_tags (
     PRIMARY KEY (game_id, tag_id)
 );
 
-CREATE TABLE IF NOT EXISTS game_categories (
-    game_id INTEGER REFERENCES games(app_id) ON DELETE CASCADE,
-    category_id INTEGER NOT NULL,
-    category_type VARCHAR(50) NOT NULL, 
-    PRIMARY KEY (game_id, category_id, category_type)
+create table if not exists categories (
+   id         integer unique not null primary key,
+   type       integer not null,
+   name       varchar(255) unique not null,
+   image_path varchar(255) not null
 );
-
+create table if not exists game_categories (
+   game_id       integer
+      references games ( app_id )
+         on delete cascade,
+   category_id   integer not null,
+   category_type varchar(50) not null,
+   primary key ( game_id,
+                 category_id,
+                 category_type )
+);
 CREATE TABLE IF NOT EXISTS game_supported_languages (
     game_id INTEGER REFERENCES games(app_id) ON DELETE CASCADE,
     elanguage INTEGER NOT NULL,
