@@ -124,6 +124,8 @@ export const getChartAggregation = async (
 		"supported_languages",
 		"developer",
 		"publisher",
+		"category",
+		"has_demo",
 	];
 
 	if (!allowedModes.includes(mode as chartAggregationMode)) {

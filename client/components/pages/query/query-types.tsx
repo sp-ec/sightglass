@@ -9,6 +9,8 @@ export const GROUP_BY_OPTIONS = [
 	{ label: "Supported Languages", value: "supported_languages" },
 	{ label: "Developer", value: "developer" },
 	{ label: "Publisher", value: "publisher" },
+	{ label: "Category", value: "category" },
+	{ label: "Has Demo", value: "has_demo" },
 ] as const;
 
 export const CHART_TYPES = [
@@ -72,4 +74,6 @@ export const BUCKET_CONFIGS: Record<GroupByValue, BucketConfig> = {
 	supported_languages: { min: 1, max: 1, step: 1, locked: true },
 	developer: { min: 1, max: 1, step: 1, locked: true },
 	publisher: { min: 1, max: 1, step: 1, locked: true },
+	category: { min: 1, max: 1, step: 1, locked: true },
+	has_demo: { min: 1, max: 1, step: 1, locked: true },
 };

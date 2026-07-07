@@ -125,6 +125,16 @@ const aggregationFragments = (tagsCounted?: number | null) =>
 			joinSql: `LEFT JOIN game_publishers ON games.app_id = game_publishers.game_id 
 				  LEFT JOIN publishers ON game_publishers.publisher_id = publishers.id`,
 		},
+		category: {
+			bucketSql: `COALESCE(categories.name, 'Unknown')`,
+			valueSql: `COALESCE(categories.id, 0)::numeric`,
+			joinSql: `LEFT JOIN game_categories ON games.app_id = game_categories.game_id 
+				  LEFT JOIN categories ON game_categories.category_id = categories.id`,
+		},
+		has_demo: {
+			bucketSql: `CASE WHEN EXISTS (SELECT 1 FROM games demo_games WHERE demo_games.parent_app_id = games.app_id) THEN 'Yes' WHEN games.parent_app_id IS NOT NULL THEN 'Is Demo' ELSE 'No' END`,
+			valueSql: `CASE WHEN EXISTS (SELECT 1 FROM games demo_games WHERE demo_games.parent_app_id = games.app_id) THEN 2 WHEN games.parent_app_id IS NOT NULL THEN 1 ELSE 0 END::numeric`,
+		},
 	}) satisfies Record<
 		chartAggregationMode,
 		{ bucketSql: string; valueSql: string; joinSql?: string }

@@ -60,7 +60,9 @@ export type chartAggregationMode =
 	| "tag"
 	| "supported_languages"
 	| "developer"
-	| "publisher";
+	| "publisher"
+	| "category"
+	| "has_demo";
 
 export const CHART_BUCKET_MIN = 1;
 export const CHART_BUCKET_MAX = 1000000;
