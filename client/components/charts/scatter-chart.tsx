@@ -3,7 +3,7 @@
 import ReactECharts from "echarts-for-react";
 import { useMemo } from "react";
 
-import { ChartPoint, ChartResponse } from "@/components/pages/query/query-types";
+import { ChartPoint, ChartResponse } from "@/components/charts/chart-types";
 
 interface ScatterChartProps {
 	data: ChartResponse | null;

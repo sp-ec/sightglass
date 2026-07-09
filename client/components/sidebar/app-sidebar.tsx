@@ -30,7 +30,7 @@ const data = {
 		},
 		{
 			name: "Chart Creator",
-			url: "query",
+			url: "chart",
 			icon: ChartPie,
 		},
 	],

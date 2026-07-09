@@ -36,7 +36,7 @@ function ThemeToggle() {
 
 const routeTitles: Record<string, string> = {
 	"/sync": "Sync Steam Data",
-	"/browse": "Browse Games",
+	"/chart": "Chart Creator",
 };
 
 export function AppShell({ children }: { children: React.ReactNode }) {

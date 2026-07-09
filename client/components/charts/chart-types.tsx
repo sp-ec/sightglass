@@ -28,13 +28,6 @@ export const AXIS_OPTIONS = [
 	{ label: "Price", value: "aggregate_price_in_cents" },
 ] as const;
 
-export const BAR_COLORS = [
-	"#60a5fa",
-	"#34d399",
-	"#fbbf24",
-	"#f472b6",
-	"#a78bfa",
-];
 export const SCATTER_NUMERIC_AXES = AXIS_OPTIONS.filter(
 	(option) => option.value !== "bucket",
 );
@@ -76,4 +69,9 @@ export const BUCKET_CONFIGS: Record<GroupByValue, BucketConfig> = {
 	publisher: { min: 1, max: 1, step: 1, locked: true },
 	category: { min: 1, max: 1, step: 1, locked: true },
 	has_demo: { min: 1, max: 1, step: 1, locked: true },
+};
+
+export type AxisOption = {
+    label: string;
+    value: string;
 };
