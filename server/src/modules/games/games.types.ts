@@ -70,6 +70,7 @@ export const CHART_BUCKET_MAX = 1000000;
 export type chartAggregationPoint = {
 	bucket: string;
 	count: number;
+	date_bucket: number | null;
 	min_value: string | null;
 	max_value: string | null;
 	aggregate_value: string | null;

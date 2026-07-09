@@ -61,6 +61,17 @@ export default function ScatterChart({
 					start: 0,
 					end: 100,
 					filterMode: "none",
+					backgroundColor: "oklch(0.27 0.00 0)",
+					fillerColor: "rgb(16, 29, 47, 0.5)",
+					borderColor: "oklch(0.37 0.00 0)",
+					handleStyle: {
+						color: "oklch(0.68 0.15 237)", // Handle core button color
+						borderColor: "#b3d8ff", // Handle outer ring stroke color
+						borderWidth: 1,
+					},
+					moveHandleStyle: {
+						color: "oklch(0.68 0.15 237)",
+					},
 				},
 				{
 					type: "slider",
@@ -70,6 +81,17 @@ export default function ScatterChart({
 					start: 0,
 					end: 100,
 					filterMode: "none",
+					backgroundColor: "oklch(0.27 0.00 0)",
+					fillerColor: "rgb(16, 29, 47, 0.5)",
+					borderColor: "oklch(0.37 0.00 0)",
+					handleStyle: {
+						color: "oklch(0.68 0.15 237)", // Handle core button color
+						borderColor: "#b3d8ff", // Handle outer ring stroke color
+						borderWidth: 1,
+					},
+					moveHandleStyle: {
+						color: "oklch(0.68 0.15 237)",
+					},
 				},
 				{
 					type: "inside",
@@ -88,8 +110,8 @@ export default function ScatterChart({
 					symbolSize: 8,
 					data: seriesData,
 					itemStyle: {
-						color: "#60a5fa",
-						opacity: 0.7,
+						color: "#0ea5e9",
+						opacity: 1,
 					},
 					large: true,
 					largeThreshold: 2000,

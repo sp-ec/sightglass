@@ -1,26 +1,20 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
+import { Poppins } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/app-shell";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
-
-const geistSans = Geist({
-	variable: "--font-geist-sans",
-	subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-	variable: "--font-geist-mono",
-	subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
 	title: "Steamanalyzer",
-	description: "Analyze over 130,000 games on Steam.",
+	description: "Analyze the entire Steam Market in one place.",
 };
+
+const poppins = Poppins({
+	subsets: ["latin"],
+	variable: "--font-poppins",
+	weight: ["400", "700"],
+});
 
 export default function RootLayout({
 	children,
@@ -30,14 +24,7 @@ export default function RootLayout({
 	return (
 		<html
 			lang="en"
-			className={cn(
-				"h-full",
-				"antialiased",
-				geistSans.variable,
-				geistMono.variable,
-				"font-sans",
-				inter.variable,
-			)}
+			className={cn("h-full", "antialiased", "font-sans", poppins.variable)}
 			suppressHydrationWarning
 		>
 			<body className="min-h-full flex flex-col">

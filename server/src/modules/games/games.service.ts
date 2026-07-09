@@ -147,6 +147,17 @@ export const getChartAggregation = async (
 	if (mode === "release_date") {
 		let chartPoints = chartData.points.map((point) => {
 			if (point.bucket !== null) {
+				point.date_bucket = parseInt(point.bucket);
+
+				//check for unreleased games
+				if (point.date_bucket < 0) {
+					point.bucket = "Unreleased";
+					point.min_value = null;
+					point.max_value = null;
+					point.aggregate_value = null;
+					return point;
+				}
+				
 				point.bucket = new Date(parseInt(point.bucket) * 1000).toDateString();
 				point.min_value = new Date(
 					parseInt(point.min_value ?? "0") * 1000,

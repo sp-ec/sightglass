@@ -4,6 +4,7 @@ import ReactECharts from "echarts-for-react";
 import { useMemo } from "react";
 
 import { ChartPoint, ChartResponse } from "@/components/charts/chart-types";
+import { ChartTooltip } from "@/components/charts/chart-tooltip";
 
 interface BarChartProps {
 	data: ChartResponse | null;
@@ -28,11 +29,21 @@ export default function BarChart({
 		const seriesData = data.points.map((point) => [
 			point[xAxisKey],
 			point[yAxisKey],
-			point,
 		]);
 
 		return {
-			tooltip: TOOLTIP,
+			tooltip: {
+				...TOOLTIP,
+				trigger: "axis",
+				formatter: (params: any) => {
+					const param = Array.isArray(params) ? params[0] : params;
+					const originalPoint = data.points[param.dataIndex];
+
+					if (!originalPoint) return "";
+
+					return ChartTooltip({ point: originalPoint });
+				},
+			},
 			grid: {
 				top: 40,
 				right: 60,
@@ -61,6 +72,17 @@ export default function BarChart({
 					start: 0,
 					end: 100,
 					filterMode: "none",
+					backgroundColor: "oklch(0.27 0.00 0)",
+					fillerColor: "rgb(16, 29, 47, 0.5)",
+					borderColor: "oklch(0.37 0.00 0)",
+					handleStyle: {
+						color: "oklch(0.68 0.15 237)", // Handle core button color
+						borderColor: "#b3d8ff", // Handle outer ring stroke color
+						borderWidth: 1,
+					},
+					moveHandleStyle: {
+						color: "oklch(0.68 0.15 237)",
+					},
 				},
 				{
 					type: "slider",
@@ -70,6 +92,17 @@ export default function BarChart({
 					start: 0,
 					end: 100,
 					filterMode: "none",
+					backgroundColor: "oklch(0.27 0.00 0)",
+					fillerColor: "rgb(16, 29, 47, 0.5)",
+					borderColor: "oklch(0.37 0.00 0)",
+					handleStyle: {
+						color: "oklch(0.68 0.15 237)", // Handle core button color
+						borderColor: "#b3d8ff", // Handle outer ring stroke color
+						borderWidth: 1,
+					},
+					moveHandleStyle: {
+						color: "oklch(0.68 0.15 237)",
+					},
 				},
 				{
 					type: "inside",
@@ -89,8 +122,8 @@ export default function BarChart({
 					largeThreshold: 2000,
 					data: seriesData,
 					itemStyle: {
-						color: "#60a5fa",
-						opacity: 0.7,
+						color: "#0ea5e9",
+						opacity: 1,
 					},
 				},
 			],
