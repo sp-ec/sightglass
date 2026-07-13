@@ -132,8 +132,8 @@ const aggregationFragments = (tagsCounted?: number | null) =>
 				  LEFT JOIN categories ON game_categories.category_id = categories.id`,
 		},
 		has_demo: {
-			bucketSql: `CASE WHEN EXISTS (SELECT 1 FROM games demo_games WHERE demo_games.parent_app_id = games.app_id) THEN 'Yes' WHEN games.parent_app_id IS NOT NULL THEN 'Is Demo' ELSE 'No' END`,
-			valueSql: `CASE WHEN EXISTS (SELECT 1 FROM games demo_games WHERE demo_games.parent_app_id = games.app_id) THEN 2 WHEN games.parent_app_id IS NOT NULL THEN 1 ELSE 0 END::numeric`,
+			bucketSql: `CASE WHEN EXISTS (SELECT 1 FROM games demo_games WHERE demo_games.parent_app_id = games.app_id) THEN 'Yes' WHEN games.type = 1 THEN 'Is Demo' ELSE 'No' END`,
+			valueSql: `CASE WHEN EXISTS (SELECT 1 FROM games demo_games WHERE demo_games.parent_app_id = games.app_id) THEN 2 WHEN games.type = 1 THEN 1 ELSE 0 END::numeric`,
 		},
 	}) satisfies Record<
 		chartAggregationMode,

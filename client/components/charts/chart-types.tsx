@@ -16,9 +16,12 @@ export const GROUP_BY_OPTIONS = [
 export const CHART_TYPES = [
 	{ label: "Bar Chart", value: "bar", icon: BarChart3 },
 	{ label: "Scatterplot", value: "scatter", icon: ScatterChartIcon },
+	{ label: "Pie Chart", value: "pie", icon: ScatterChartIcon },
+	{ label: "Radar Chart", value: "radar", icon: ScatterChartIcon },
 ] as const;
 
 export const AXIS_OPTIONS = [
+	{ label: "None", value: "" },
 	{ label: "Bucket", value: "bucket" },
 	{ label: "Count", value: "count" },
 	{ label: "Aggregate Value", value: "aggregate_value" },
@@ -28,7 +31,7 @@ export const AXIS_OPTIONS = [
 	{ label: "Price", value: "aggregate_price_in_cents" },
 ] as const;
 
-export const SCATTER_NUMERIC_AXES = AXIS_OPTIONS.filter(
+export const NUMERIC_AXIS_OPTIONS = AXIS_OPTIONS.filter(
 	(option) => option.value !== "bucket",
 );
 

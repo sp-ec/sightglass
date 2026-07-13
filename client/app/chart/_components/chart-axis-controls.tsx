@@ -27,62 +27,65 @@ export function ChartAxisControls({
     onYAxisChange,
 }: Props) {
     return (
-        <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-                <p className="text-sm font-medium">X Axis</p>
-                <Combobox items={axisOptions}>
-                    <ComboboxInput
-                        placeholder="Choose x axis"
-                        value={xAxisLabel}
-                        disabled={xAxisDisabled}
-                    />
-                    <ComboboxContent>
-                        <ComboboxEmpty>No axis options found.</ComboboxEmpty>
-                        <ComboboxList>
-                            {axisOptions.map((option) => (
-                                <ComboboxItem
-                                    key={option.value}
-                                    value={option.label}
-                                    onSelect={() => onXAxisChange(option.value)}
-                                    onClick={() => onXAxisChange(option.value)}
-                                    onPointerDown={(e) => {
-                                        e.preventDefault();
-                                        onXAxisChange(option.value);
-                                    }}
-                                >
-                                    {option.label}
-                                </ComboboxItem>
-                            ))}
-                        </ComboboxList>
-                    </ComboboxContent>
-                </Combobox>
-            </div>
+			<div className="grid gap-4 md:grid-cols-2">
+				<div className="space-y-2">
+					<p className="text-sm font-medium">Series 1</p>
+					<Combobox items={axisOptions}>
+						<ComboboxInput
+							placeholder="Choose series 1"
+							value={xAxisLabel}
+							disabled={xAxisDisabled}
+						/>
+						<ComboboxContent>
+							<ComboboxEmpty>No axis options found.</ComboboxEmpty>
+							<ComboboxList>
+								{axisOptions.map((option) => (
+									<ComboboxItem
+										key={option.value}
+										value={option.label}
+										onSelect={() => onXAxisChange(option.value)}
+										onClick={() => onXAxisChange(option.value)}
+										onPointerDown={(e) => {
+											e.preventDefault();
+											onXAxisChange(option.value);
+										}}
+									>
+										{option.label}
+									</ComboboxItem>
+								))}
+							</ComboboxList>
+						</ComboboxContent>
+					</Combobox>
+				</div>
 
-            <div className="space-y-2">
-                <p className="text-sm font-medium">Y Axis</p>
-                <Combobox items={axisOptions}>
-                    <ComboboxInput placeholder="Choose y axis" value={selectedYAxisLabel} />
-                    <ComboboxContent>
-                        <ComboboxEmpty>No axis options found.</ComboboxEmpty>
-                        <ComboboxList>
-                            {axisOptions.map((option) => (
-                                <ComboboxItem
-                                    key={option.value}
-                                    value={option.label}
-                                    onSelect={() => onYAxisChange(option.value)}
-                                    onClick={() => onYAxisChange(option.value)}
-                                    onPointerDown={(e) => {
-                                        e.preventDefault();
-                                        onYAxisChange(option.value);
-                                    }}
-                                >
-                                    {option.label}
-                                </ComboboxItem>
-                            ))}
-                        </ComboboxList>
-                    </ComboboxContent>
-                </Combobox>
-            </div>
-        </div>
-    );
+				<div className="space-y-2">
+					<p className="text-sm font-medium">Series 2</p>
+					<Combobox items={axisOptions}>
+						<ComboboxInput
+							placeholder="Choose series 2"
+							value={selectedYAxisLabel}
+						/>
+						<ComboboxContent>
+							<ComboboxEmpty>No axis options found.</ComboboxEmpty>
+							<ComboboxList>
+								{axisOptions.map((option) => (
+									<ComboboxItem
+										key={option.value}
+										value={option.label}
+										onSelect={() => onYAxisChange(option.value)}
+										onClick={() => onYAxisChange(option.value)}
+										onPointerDown={(e) => {
+											e.preventDefault();
+											onYAxisChange(option.value);
+										}}
+									>
+										{option.label}
+									</ComboboxItem>
+								))}
+							</ComboboxList>
+						</ComboboxContent>
+					</Combobox>
+				</div>
+			</div>
+		);
 }

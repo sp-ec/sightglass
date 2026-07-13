@@ -4,7 +4,7 @@ import {
 	CHART_TYPES,
 	AXIS_OPTIONS,
 	BUCKET_CONFIGS,
-	SCATTER_NUMERIC_AXES,
+	NUMERIC_AXIS_OPTIONS,
 	GroupByValue,
 	ChartType,
 	AxisValue,
@@ -33,8 +33,7 @@ export function useChartState() {
 	const [tagsCounted, setTagsCounted] = useState<number | null>(10);
 
 	const bucketConfig = groupBy ? BUCKET_CONFIGS[groupBy] : null;
-	const axisOptions =
-		chartType === "scatter" ? SCATTER_NUMERIC_AXES : AXIS_OPTIONS;
+	const axisOptions = NUMERIC_AXIS_OPTIONS;
 
 	const selectedGroupByLabel = useMemo(
 		() =>
@@ -54,9 +53,9 @@ export function useChartState() {
 		[axisOptions, yAxis],
 	);
 
-	const isBarChart = chartType === "bar";
-	const xAxisLabel = isBarChart ? "Bucket" : selectedXAxisLabel;
-	const xAxisDisabled = isBarChart;
+	const isBucketChart = chartType === "bar" || chartType === "pie";
+	const xAxisLabel = isBucketChart ? "Bucket" : selectedXAxisLabel;
+	const xAxisDisabled = isBucketChart;
 
 	const bucketDisplayValue = useMemo(() => {
 		if (!bucketConfig) return bucketSize;
@@ -67,9 +66,8 @@ export function useChartState() {
 			: bucketSize;
 	}, [bucketConfig, bucketSize]);
 
-	// Handle axis resets based on chart type
 	useEffect(() => {
-		if (chartType === "bar" && xAxis !== "bucket") setXAxis("bucket");
+		if (isBucketChart) setXAxis("bucket");
 	}, [chartType, xAxis]);
 
 	useEffect(() => {
@@ -81,29 +79,36 @@ export function useChartState() {
 			if (xAxis === "bucket") setXAxis("aggregate_value");
 			if (yAxis === "bucket") setYAxis("count");
 		}
+		if (chartType === "radar") {
+			if (xAxis === "bucket") setXAxis("count");
+			if (yAxis === "bucket") setYAxis("aggregate_review_score");
+		}
 	}, [groupBy, chartType, xAxis, yAxis]);
 
-	// Handle Sorting
+	// Handle sorting
 	useEffect(() => {
 		if (!chartData || !sortingMode) return;
 
 		const sortedPoints = [...chartData.points];
+		const sortedSeries = chartType === "radar" ? xAxis : yAxis;
 
 		console.log("Sorted points size: ", sortedPoints.length);
 
 		if (sortingMode === "ascending") {
 			sortedPoints.sort(
-				(a, b) => (Number(a[yAxis]) || 0) - (Number(b[yAxis]) || 0),
+				(a, b) =>
+					(Number(a[sortedSeries]) || 0) - (Number(b[sortedSeries]) || 0),
 			);
 		} else if (sortingMode === "descending") {
 			sortedPoints.sort(
-				(a, b) => (Number(b[yAxis]) || 0) - (Number(a[yAxis]) || 0),
+				(a, b) =>
+					(Number(b[sortedSeries]) || 0) - (Number(a[sortedSeries]) || 0),
 			);
 		}
 		setSortedChartData({ ...chartData, points: sortedPoints });
 	}, [chartData, sortingMode, xAxis, yAxis]);
 
-	// Data Fetching
+	// data fetching
 	useEffect(() => {
 		if (!groupBy || !chartType) {
 			setChartData(null);

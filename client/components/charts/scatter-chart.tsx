@@ -25,99 +25,108 @@ export default function ScatterChart({
 }: ScatterChartProps) {
 	const option = useMemo(() => {
 		if (!data || data.points.length === 0) return {};
-		const seriesData = data.points.map((point) => [
-			point[xAxisKey],
-			point[yAxisKey],
-			point,
-		]);
 
-		return {
-			tooltip: TOOLTIP,
-			grid: {
-				top: 40,
-				right: 60,
-				bottom: 80,
-				left: 60,
-			},
-			xAxis: {
-				type: "value",
-				name: xAxisLabel || xAxisKey,
-				nameLocation: "middle",
-				scale: true,
-			},
-			yAxis: {
-				type: "value",
-				name: yAxisLabel || yAxisKey,
-				nameLocation: "middle",
-				nameGap: 40,
-				scale: true,
-			},
-			dataZoom: [
-				{
-					type: "slider",
-					show: true,
-					xAxisIndex: [0],
-					bottom: 10,
-					start: 0,
-					end: 100,
-					filterMode: "none",
-					backgroundColor: "oklch(0.27 0.00 0)",
-					fillerColor: "rgb(16, 29, 47, 0.5)",
-					borderColor: "oklch(0.37 0.00 0)",
-					handleStyle: {
-						color: "oklch(0.68 0.15 237)", // Handle core button color
-						borderColor: "#b3d8ff", // Handle outer ring stroke color
-						borderWidth: 1,
-					},
-					moveHandleStyle: {
-						color: "oklch(0.68 0.15 237)",
-					},
+			const isCategorical =
+				data.points[0].bucket !== undefined &&
+				typeof data.points[0].bucket === "string";
+
+			const seriesData = data.points.map((point) => {
+				return [point[xAxisKey] as any, point[yAxisKey] as any, point];
+			});
+
+			return {
+				tooltip: TOOLTIP,
+				grid: {
+					top: 40,
+					right: 60,
+					bottom: 80,
+					left: 60,
 				},
-				{
-					type: "slider",
-					show: true,
-					yAxisIndex: [0],
-					right: 10,
-					start: 0,
-					end: 100,
-					filterMode: "none",
-					backgroundColor: "oklch(0.27 0.00 0)",
-					fillerColor: "rgb(16, 29, 47, 0.5)",
-					borderColor: "oklch(0.37 0.00 0)",
-					handleStyle: {
-						color: "oklch(0.68 0.15 237)", // Handle core button color
-						borderColor: "#b3d8ff", // Handle outer ring stroke color
-						borderWidth: 1,
+				xAxis: {
+					type:
+						isCategorical && xAxisKey == "aggregate_value"
+							? "category"
+							: "value",
+					name: xAxisLabel || xAxisKey,
+					nameLocation: "middle",
+					scale: true,
+				},
+				yAxis: {
+					type:
+						isCategorical && yAxisKey == "aggregate_value"
+							? "category"
+							: "value",
+					name: yAxisLabel || yAxisKey,
+					nameLocation: "middle",
+					nameGap: 40,
+					scale: true,
+				},
+				dataZoom: [
+					{
+						type: "slider",
+						show: true,
+						xAxisIndex: [0],
+						bottom: 10,
+						start: 0,
+						end: 100,
+						filterMode: "none",
+						backgroundColor: "oklch(0.27 0.00 0)",
+						fillerColor: "rgb(16, 29, 47, 0.5)",
+						borderColor: "oklch(0.37 0.00 0)",
+						handleStyle: {
+							color: "oklch(0.68 0.15 237)",
+							borderColor: "#b3d8ff",
+							borderWidth: 1,
+						},
+						moveHandleStyle: {
+							color: "oklch(0.68 0.15 237)",
+						},
 					},
-					moveHandleStyle: {
-						color: "oklch(0.68 0.15 237)",
+					{
+						type: "slider",
+						show: true,
+						yAxisIndex: [0],
+						right: 10,
+						start: 0,
+						end: 100,
+						filterMode: "none",
+						backgroundColor: "oklch(0.27 0.00 0)",
+						fillerColor: "rgb(16, 29, 47, 0.5)",
+						borderColor: "oklch(0.37 0.00 0)",
+						handleStyle: {
+							color: "oklch(0.68 0.15 237)",
+							borderColor: "#b3d8ff",
+							borderWidth: 1,
+						},
+						moveHandleStyle: {
+							color: "oklch(0.68 0.15 237)",
+						},
 					},
-				},
-				{
-					type: "inside",
-					xAxisIndex: [0],
-					filterMode: "none",
-				},
-				{
-					type: "inside",
-					yAxisIndex: [0],
-					filterMode: "none",
-				},
-			],
-			series: [
-				{
-					type: "scatter",
-					symbolSize: 8,
-					data: seriesData,
-					itemStyle: {
-						color: "#0ea5e9",
-						opacity: 1,
+					{
+						type: "inside",
+						xAxisIndex: [0],
+						filterMode: "none",
 					},
-					large: true,
-					largeThreshold: 2000,
-				},
-			],
-		};
+					{
+						type: "inside",
+						yAxisIndex: [0],
+						filterMode: "none",
+					},
+				],
+				series: [
+					{
+						type: "scatter",
+						symbolSize: 8,
+						data: seriesData,
+						itemStyle: {
+							color: "#0ea5e9",
+							opacity: 1,
+						},
+						large: true,
+						largeThreshold: 2000,
+					},
+				],
+			};
 	}, [data, xAxisKey, yAxisKey, xAxisLabel, yAxisLabel]);
 
 	console.log("ScatterChart data:", data);
