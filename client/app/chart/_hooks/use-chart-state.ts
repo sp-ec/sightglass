@@ -56,6 +56,7 @@ export function useChartState() {
 	const isBucketChart = chartType === "bar" || chartType === "pie";
 	const xAxisLabel = isBucketChart ? "Bucket" : selectedXAxisLabel;
 	const xAxisDisabled = isBucketChart;
+	// const isStreamgraph = chartType === "streamgraph";
 
 	const bucketDisplayValue = useMemo(() => {
 		if (!bucketConfig) return bucketSize;

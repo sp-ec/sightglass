@@ -1,4 +1,5 @@
-import { BarChart3, ScatterChart as ScatterChartIcon } from "lucide-react";
+import { BarChart3, ScatterChart, ChartPie, Hexagon } from "lucide-react";
+import { StreamgraphIcon } from "../icons/streamgraph-icon";
 
 export const GROUP_BY_OPTIONS = [
 	{ label: "Review Count", value: "review_count" },
@@ -15,9 +16,10 @@ export const GROUP_BY_OPTIONS = [
 
 export const CHART_TYPES = [
 	{ label: "Bar Chart", value: "bar", icon: BarChart3 },
-	{ label: "Scatterplot", value: "scatter", icon: ScatterChartIcon },
-	{ label: "Pie Chart", value: "pie", icon: ScatterChartIcon },
-	{ label: "Radar Chart", value: "radar", icon: ScatterChartIcon },
+	{ label: "Scatterplot", value: "scatter", icon: ScatterChart },
+	{ label: "Pie Chart", value: "pie", icon: ChartPie },
+	{ label: "Radar Chart", value: "radar", icon: Hexagon },
+	// { label: "Streamgraph", value: "streamgraph", icon: StreamgraphIcon },
 ] as const;
 
 export const AXIS_OPTIONS = [
@@ -75,6 +77,6 @@ export const BUCKET_CONFIGS: Record<GroupByValue, BucketConfig> = {
 };
 
 export type AxisOption = {
-    label: string;
-    value: string;
+	label: string;
+	value: string;
 };

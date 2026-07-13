@@ -61,11 +61,7 @@ export default function PieChart({
 	if (!data || data.points.length === 0) {
 		return (
 			<div className="flex h-full min-h-100 w-full items-center justify-center text-sm text-muted-foreground flex-row gap-2">
-				<div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground flex-col gap-2">
-					<Skeleton className="h-full w-full" />
-					<Skeleton className="h-10 w-full" />
-				</div>
-				<Skeleton className="h-108 w-10 mb-12" />
+				<Skeleton className="h-220 w-220 rounded-full" />
 			</div>
 		);
 	}
