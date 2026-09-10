@@ -9,6 +9,10 @@ import {
 	chartAggregationMode,
 	chartAggregationPoint,
 	chartAggregationResponse,
+	chartFilters,
+	chartFilterSql,
+	tagOption,
+	languageOption,
 	CHART_BUCKET_MIN,
 	CHART_BUCKET_MAX,
 } from "./games.types";
@@ -75,6 +79,101 @@ export const findGameById = async (appId: string) => {
 		console.error(error);
 		return null;
 	}
+};
+
+type aggregationFragment = {
+	bucketSql: string;
+	valueSql: string;
+	joinSql?: string;
+};
+
+// Builds the parameterized WHERE clause shared by every chart aggregation query
+const buildChartFilterSql = (filters?: chartFilters): chartFilterSql => {
+	const clauses: string[] = [];
+	const params: chartFilterSql["params"] = [];
+
+	const addParam = (value: chartFilterSql["params"][number]) => {
+		params.push(value);
+		return `$${params.length}`;
+	};
+
+	if (!filters) {
+		return { whereSql: "", params };
+	}
+
+	if (filters.release_date?.min) {
+		clauses.push(
+			`games.steam_release_date >= ${addParam(filters.release_date.min)}::timestamp`,
+		);
+	}
+	if (filters.release_date?.max) {
+		clauses.push(
+			`games.steam_release_date <= ${addParam(filters.release_date.max)}::timestamp`,
+		);
+	}
+
+	if (filters.price?.min != null) {
+		clauses.push(`games.price_in_cents >= ${addParam(filters.price.min)}`);
+	}
+	if (filters.price?.max != null) {
+		clauses.push(`games.price_in_cents <= ${addParam(filters.price.max)}`);
+	}
+
+	if (filters.is_demo != null) {
+		clauses.push(
+			filters.is_demo
+				? `games.type = 1`
+				: `(games.type IS NULL OR games.type <> 1)`,
+		);
+	}
+
+	if (filters.tags?.length) {
+		const tagsExistSql = `EXISTS (
+                    SELECT 1 FROM game_tags filter_tags
+                    WHERE filter_tags.game_id = games.app_id
+                    AND filter_tags.tag_id = ANY(${addParam(filters.tags)}::int[])
+                )`;
+		clauses.push(
+			filters.tags_mode === "exclude" ? `NOT ${tagsExistSql}` : tagsExistSql,
+		);
+	}
+
+	if (filters.languages?.length) {
+		const languagesExistSql = `EXISTS (
+                    SELECT 1 FROM game_supported_languages filter_languages
+                    WHERE filter_languages.game_id = games.app_id
+                    AND filter_languages.supported = true
+                    AND filter_languages.elanguage = ANY(${addParam(filters.languages)}::int[])
+                )`;
+		clauses.push(
+			filters.languages_mode === "exclude"
+				? `NOT ${languagesExistSql}`
+				: languagesExistSql,
+		);
+	}
+
+	if (filters.percent_positive?.min != null) {
+		clauses.push(
+			`reviews.percent_positive >= ${addParam(filters.percent_positive.min)}`,
+		);
+	}
+	if (filters.percent_positive?.max != null) {
+		clauses.push(
+			`reviews.percent_positive <= ${addParam(filters.percent_positive.max)}`,
+		);
+	}
+
+	if (filters.review_count?.min != null) {
+		clauses.push(`reviews.review_count >= ${addParam(filters.review_count.min)}`);
+	}
+	if (filters.review_count?.max != null) {
+		clauses.push(`reviews.review_count <= ${addParam(filters.review_count.max)}`);
+	}
+
+	return {
+		whereSql: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "",
+		params,
+	};
 };
 
 const aggregationFragments = (tagsCounted?: number | null) =>
@@ -149,9 +248,10 @@ const getBucketSize = (bucketSize: number | undefined | null) => {
 };
 
 const aggregateAverage = (
-	fragment: any,
+	fragment: aggregationFragment,
 	isNumericMode: boolean,
 	normalizedBucketSize: number,
+	whereSql: string,
 ): string => {
 	return isNumericMode
 		? `WITH numeric_games AS (
@@ -164,6 +264,7 @@ const aggregateAverage = (
                 FROM games
                 LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
                 ${fragment.joinSql || ""}
+                ${whereSql}
             ),
             aggregated_games AS (
                 SELECT
@@ -199,6 +300,7 @@ const aggregateAverage = (
                 FROM games
                 LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
                 ${fragment.joinSql || ""}
+                ${whereSql}
             )
             SELECT
                 bucket::text AS bucket,
@@ -216,9 +318,10 @@ const aggregateAverage = (
 };
 
 const aggregateMedian = (
-	fragment: any,
+	fragment: aggregationFragment,
 	isNumericMode: boolean,
 	normalizedBucketSize: number,
+	whereSql: string,
 ): string => {
 	return isNumericMode
 		? `WITH numeric_games AS (
@@ -231,6 +334,7 @@ const aggregateMedian = (
                 FROM games
                 LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
                 ${fragment.joinSql || ""}
+                ${whereSql}
             ),
             aggregated_games AS (
                 SELECT
@@ -266,6 +370,7 @@ const aggregateMedian = (
                 FROM games
                 LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
                 ${fragment.joinSql || ""}
+                ${whereSql}
             )
             SELECT
                 bucket::text AS bucket,
@@ -287,6 +392,7 @@ export const getGameChartAggregation = async (
 	bucketSize?: number | null,
 	aggregate: "average" | "median" = "average",
 	tagsCounted?: number | null,
+	filters?: chartFilters,
 ) => {
 	const fragment = aggregationFragments(tagsCounted)[mode];
 	let normalizedBucketSize = getBucketSize(bucketSize);
@@ -305,10 +411,18 @@ export const getGameChartAggregation = async (
 		normalizedBucketSize *= 86400;
 	}
 
+	const { whereSql, params } = buildChartFilterSql(filters);
+
 	const result = await pool.query(
 		aggregate === "median"
-			? aggregateMedian(fragment, isNumericMode, normalizedBucketSize)
-			: aggregateAverage(fragment, isNumericMode, normalizedBucketSize),
+			? aggregateMedian(fragment, isNumericMode, normalizedBucketSize, whereSql)
+			: aggregateAverage(
+					fragment,
+					isNumericMode,
+					normalizedBucketSize,
+					whereSql,
+				),
+		params,
 	);
 
 	return {
@@ -317,4 +431,28 @@ export const getGameChartAggregation = async (
 		bucket_size: normalizedBucketSize,
 		points: result.rows as chartAggregationPoint[],
 	} satisfies chartAggregationResponse;
+};
+
+export const findAllTags = async () => {
+	try {
+		const result = await pool.query(
+			`SELECT id, name FROM tags ORDER BY name ASC;`,
+		);
+
+		return result.rows as tagOption[];
+	} catch (error) {
+		return [];
+	}
+};
+
+export const findAllLanguages = async () => {
+	try {
+		const result = await pool.query(
+			`SELECT id, code, name FROM languages ORDER BY name ASC;`,
+		);
+
+		return result.rows as languageOption[];
+	} catch (error) {
+		return [];
+	}
 };

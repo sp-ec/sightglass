@@ -86,3 +86,43 @@ export type chartAggregationResponse = {
 	bucket_size: number | null;
 	points: chartAggregationPoint[];
 };
+
+export type chartFilterMode = "include" | "exclude";
+
+export type chartRangeFilter = {
+	min?: number | null;
+	max?: number | null;
+};
+
+export type chartDateRangeFilter = {
+	min?: string | null;
+	max?: string | null;
+};
+
+export type chartFilters = {
+	release_date?: chartDateRangeFilter;
+	price?: chartRangeFilter;
+	is_demo?: boolean;
+	tags?: number[];
+	tags_mode?: chartFilterMode;
+	languages?: number[];
+	languages_mode?: chartFilterMode;
+	percent_positive?: chartRangeFilter;
+	review_count?: chartRangeFilter;
+};
+
+export type chartFilterSql = {
+	whereSql: string;
+	params: (number | string | boolean | number[])[];
+};
+
+export type tagOption = {
+	id: number;
+	name: string;
+};
+
+export type languageOption = {
+	id: number;
+	code: string;
+	name: string;
+};

@@ -1,0 +1,15 @@
+info:
+  name: Language Options
+  type: http
+  seq: 5
+
+http:
+  method: GET
+  url: "{{api_url}}/games/languages"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

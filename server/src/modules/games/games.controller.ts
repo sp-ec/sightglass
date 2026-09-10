@@ -1,5 +1,11 @@
 import { Request, Response } from "express";
-import { fetchGameById, searchGamesByTitle, getChartAggregation } from "./games.service";
+import {
+	fetchGameById,
+	searchGamesByTitle,
+	getChartAggregation,
+	fetchTagOptions,
+	fetchLanguageOptions,
+} from "./games.service";
 
 export const getGamesByTitle = async (req: Request, res: Response) => {
 	try {
@@ -30,6 +36,7 @@ export const getGameChartData = async (req: Request, res: Response) => {
 			req.query.bucket_size as string | undefined,
 			req.query.aggregate as "average" | "median" | undefined,
 			req.query.tags_counted ? Number(req.query.tags_counted) : undefined,
+			req.query.filters as string | undefined,
 		);
 		if (!result) {
 			return res.status(400).json({
@@ -41,6 +48,28 @@ export const getGameChartData = async (req: Request, res: Response) => {
 	} catch (error) {
 		return res.status(500).json({
 			message: "Failed to get chart aggregation data",
+		});
+	}
+};
+
+export const getTagOptions = async (req: Request, res: Response) => {
+	try {
+		const result = await fetchTagOptions();
+		return res.status(200).json(result);
+	} catch (error) {
+		return res.status(500).json({
+			message: "Failed to get tag options",
+		});
+	}
+};
+
+export const getLanguageOptions = async (req: Request, res: Response) => {
+	try {
+		const result = await fetchLanguageOptions();
+		return res.status(200).json(result);
+	} catch (error) {
+		return res.status(500).json({
+			message: "Failed to get language options",
 		});
 	}
 };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
 	GROUP_BY_OPTIONS,
 	CHART_TYPES,
@@ -9,7 +9,14 @@ import {
 	ChartType,
 	AxisValue,
 	ChartResponse,
+	ChartFilters,
+	FilterOption,
+	DEFAULT_CHART_FILTERS,
+	serializeChartFilters,
+	countActiveChartFilters,
 } from "@/components/charts/chart-types";
+
+const FILTER_DEBOUNCE_DELAY = 400;
 
 export function useChartState() {
 	const [groupBy, setGroupBy] = useState<GroupByValue | "">("");
@@ -31,9 +38,34 @@ export function useChartState() {
 	const [error, setError] = useState<string | null>(null);
 	const [bucketError, setBucketError] = useState<string | null>(null);
 	const [tagsCounted, setTagsCounted] = useState<number | null>(10);
+	const [filters, setFilters] = useState<ChartFilters>(DEFAULT_CHART_FILTERS);
+	const [tagOptions, setTagOptions] = useState<FilterOption[]>([]);
+	const [languageOptions, setLanguageOptions] = useState<FilterOption[]>([]);
+	const [debouncedFilters, setDebouncedFilters] = useState<string | null>(null);
 
 	const bucketConfig = groupBy ? BUCKET_CONFIGS[groupBy] : null;
 	const axisOptions = NUMERIC_AXIS_OPTIONS;
+
+	const serializedFilters = useMemo(
+		() => serializeChartFilters(filters),
+		[filters],
+	);
+	const activeFilterCount = useMemo(
+		() => countActiveChartFilters(filters),
+		[filters],
+	);
+
+	const setFilter = useCallback(
+		<Key extends keyof ChartFilters>(key: Key, value: ChartFilters[Key]) => {
+			setFilters((current) => ({ ...current, [key]: value }));
+		},
+		[],
+	);
+
+	const resetFilters = useCallback(
+		() => setFilters(DEFAULT_CHART_FILTERS),
+		[],
+	);
 
 	const selectedGroupByLabel = useMemo(
 		() =>
@@ -93,8 +125,6 @@ export function useChartState() {
 		const sortedPoints = [...chartData.points];
 		const sortedSeries = chartType === "radar" ? xAxis : yAxis;
 
-		console.log("Sorted points size: ", sortedPoints.length);
-
 		if (sortingMode === "ascending") {
 			sortedPoints.sort(
 				(a, b) =>
@@ -108,6 +138,44 @@ export function useChartState() {
 		}
 		setSortedChartData({ ...chartData, points: sortedPoints });
 	}, [chartData, sortingMode, xAxis, yAxis]);
+
+	// filter option loading
+	useEffect(() => {
+		const controller = new AbortController();
+		const loadFilterOptions = async () => {
+			try {
+				const [tagResponse, languageResponse] = await Promise.all([
+					fetch(`${process.env.NEXT_PUBLIC_API_URL}/games/tags`, {
+						signal: controller.signal,
+					}),
+					fetch(`${process.env.NEXT_PUBLIC_API_URL}/games/languages`, {
+						signal: controller.signal,
+					}),
+				]);
+				if (!tagResponse.ok || !languageResponse.ok) {
+					throw new Error("Failed to load filter options");
+				}
+				setTagOptions((await tagResponse.json()) as FilterOption[]);
+				setLanguageOptions((await languageResponse.json()) as FilterOption[]);
+			} catch (err) {
+				if ((err as Error).name !== "AbortError") {
+					setError("Failed to load filter options");
+				}
+			}
+		};
+
+		loadFilterOptions();
+		return () => controller.abort();
+	}, []);
+
+	// debounce filters so typed ranges do not refetch on every keystroke
+	useEffect(() => {
+		const timeout = setTimeout(
+			() => setDebouncedFilters(serializedFilters),
+			FILTER_DEBOUNCE_DELAY,
+		);
+		return () => clearTimeout(timeout);
+	}, [serializedFilters]);
 
 	// data fetching
 	useEffect(() => {
@@ -127,6 +195,9 @@ export function useChartState() {
 					aggregate: aggregateMode,
 					tags_counted: String(tagsCounted),
 				});
+				if (debouncedFilters) {
+					params.set("filters", debouncedFilters);
+				}
 				const response = await fetch(
 					`${process.env.NEXT_PUBLIC_API_URL}/games/chart?${params.toString()}`,
 					{ signal: controller.signal },
@@ -145,7 +216,14 @@ export function useChartState() {
 
 		loadChartData();
 		return () => controller.abort();
-	}, [groupBy, chartType, bucketSize, aggregateMode, tagsCounted]);
+	}, [
+		groupBy,
+		chartType,
+		bucketSize,
+		aggregateMode,
+		tagsCounted,
+		debouncedFilters,
+	]);
 
 	return {
 		state: {
@@ -157,6 +235,10 @@ export function useChartState() {
 			aggregateMode,
 			sortingMode,
 			tagsCounted,
+			filters,
+			tagOptions,
+			languageOptions,
+			activeFilterCount,
 			loading,
 			error,
 			bucketError,
@@ -170,6 +252,7 @@ export function useChartState() {
 			bucketDisplayValue,
 			sortedChartData,
 			canRenderChart: Boolean(groupBy && chartType),
+			showFilters: Boolean(groupBy && chartType),
 		},
 		actions: {
 			setGroupBy,
@@ -181,6 +264,8 @@ export function useChartState() {
 			setSortingMode,
 			setTagsCounted,
 			setBucketError,
+			setFilter,
+			resetFilters,
 		},
 	};
 }

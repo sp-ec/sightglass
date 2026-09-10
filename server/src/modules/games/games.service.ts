@@ -2,12 +2,18 @@ import {
 	findGameByTitle,
 	findGameById,
 	getGameChartAggregation,
+	findAllTags,
+	findAllLanguages,
 } from "./games.repository";
 import {
 	gameAssets,
 	gameBasicInfo,
 	gameResponse,
 	chartAggregationMode,
+	chartFilters,
+	chartFilterMode,
+	chartRangeFilter,
+	chartDateRangeFilter,
 	CHART_BUCKET_MIN,
 	CHART_BUCKET_MAX,
 } from "./games.types";
@@ -109,11 +115,110 @@ export const fetchGameById = async (appId: string) => {
 	return gameResponse;
 };
 
+const parseNumericRange = (value: unknown): chartRangeFilter | undefined => {
+	if (!value || typeof value !== "object") {
+		return undefined;
+	}
+
+	const { min, max } = value as Record<string, unknown>;
+	const parsedMin = Number(min);
+	const parsedMax = Number(max);
+	const range: chartRangeFilter = {
+		min: min != null && Number.isFinite(parsedMin) ? parsedMin : null,
+		max: max != null && Number.isFinite(parsedMax) ? parsedMax : null,
+	};
+
+	return range.min == null && range.max == null ? undefined : range;
+};
+
+const parseDateRange = (value: unknown): chartDateRangeFilter | undefined => {
+	if (!value || typeof value !== "object") {
+		return undefined;
+	}
+
+	const { min, max } = value as Record<string, unknown>;
+	const isValidDate = (date: unknown) =>
+		typeof date === "string" && !Number.isNaN(Date.parse(date));
+	const range: chartDateRangeFilter = {
+		min: isValidDate(min) ? (min as string) : null,
+		max: isValidDate(max) ? (max as string) : null,
+	};
+
+	return range.min == null && range.max == null ? undefined : range;
+};
+
+const parseIdList = (value: unknown): number[] | undefined => {
+	if (!Array.isArray(value)) {
+		return undefined;
+	}
+
+	const ids = value
+		.map((id) => Number(id))
+		.filter((id) => Number.isFinite(id) && Number.isInteger(id));
+
+	return ids.length ? ids : undefined;
+};
+
+const parseFilterMode = (value: unknown): chartFilterMode =>
+	value === "exclude" ? "exclude" : "include";
+
+export const parseChartFilters = (
+	rawFilters: string | undefined,
+): chartFilters | undefined => {
+	if (!rawFilters) {
+		return undefined;
+	}
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(rawFilters);
+	} catch (error) {
+		return undefined;
+	}
+
+	if (!parsed || typeof parsed !== "object") {
+		return undefined;
+	}
+
+	const raw = parsed as Record<string, unknown>;
+	const filters: chartFilters = {
+		release_date: parseDateRange(raw.release_date),
+		price: parseNumericRange(raw.price),
+		is_demo: typeof raw.is_demo === "boolean" ? raw.is_demo : undefined,
+		tags: parseIdList(raw.tags),
+		languages: parseIdList(raw.languages),
+		percent_positive: parseNumericRange(raw.percent_positive),
+		review_count: parseNumericRange(raw.review_count),
+	};
+
+	if (filters.tags) {
+		filters.tags_mode = parseFilterMode(raw.tags_mode);
+	}
+	if (filters.languages) {
+		filters.languages_mode = parseFilterMode(raw.languages_mode);
+	}
+
+	const hasActiveFilter = Object.values(filters).some(
+		(value) => value !== undefined,
+	);
+
+	return hasActiveFilter ? filters : undefined;
+};
+
+export const fetchTagOptions = async () => {
+	return await findAllTags();
+};
+
+export const fetchLanguageOptions = async () => {
+	return await findAllLanguages();
+};
+
 export const getChartAggregation = async (
 	mode: string,
 	bucketSize: string | undefined,
 	aggregate: "average" | "median" = "average",
 	tagsCounted?: number | null,
+	rawFilters?: string,
 ) => {
 	const allowedModes: chartAggregationMode[] = [
 		"review_count",
@@ -142,6 +247,7 @@ export const getChartAggregation = async (
 		normalizedBucketSize,
 		aggregate,
 		tagsCounted,
+		parseChartFilters(rawFilters),
 	);
 
 	if (mode === "release_date") {
