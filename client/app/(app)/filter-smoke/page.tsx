@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChartFilterPanel } from "@/app/chart/_components/chart-filter-panel";
+import { ChartFilterPanel } from "@/app/(app)/chart/_components/chart-filter-panel";
 import {
   ChartFilters,
   DEFAULT_CHART_FILTERS,

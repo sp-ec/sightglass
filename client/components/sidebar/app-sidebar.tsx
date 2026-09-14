@@ -1,8 +1,9 @@
+"use client";
+
 import {
 	Sidebar,
 	SidebarContent,
 	SidebarFooter,
-	SidebarGroup,
 	SidebarHeader,
 	SidebarMenu,
 	SidebarMenuItem,
@@ -11,63 +12,66 @@ import {
 import {
 	Gamepad2,
 	CloudSync,
-	LibraryBig,
-	SquarePlus,
 	ChartPie,
 	LayoutDashboard,
 	BriefcaseBusiness,
 	Tag,
 	Telescope,
 } from "lucide-react";
+import Link from "next/link";
+import { useAuth } from "@/components/auth/auth-provider";
 import { NavSection } from "./nav-section";
+import { NavUser } from "./nav-user";
 
 const data = {
 	analytics: [
 		{
 			name: "Dashboard",
-			url: "query",
+			url: "/dashboard",
 			icon: LayoutDashboard,
 		},
 		{
 			name: "Chart Creator",
-			url: "chart",
+			url: "/chart",
 			icon: ChartPie,
 		},
 	],
 	market: [
 		{
 			name: "Games List",
-			url: "browse",
+			url: "/browse",
 			icon: Gamepad2,
 		},
 		{
 			name: "Developers & Publishers",
-			url: "browse",
+			url: "/browse",
 			icon: BriefcaseBusiness,
 		},
 		{
 			name: "Tags & Genres",
-			url: "browse",
+			url: "/browse",
 			icon: Tag,
 		},
 	],
 	administration: [
 		{
 			name: "Sync Steam Data",
-			url: "sync",
+			url: "/sync",
 			icon: CloudSync,
 		},
 	],
 };
 
 export function AppSidebar() {
+	const { user } = useAuth();
+
 	return (
 		<Sidebar>
 			<SidebarHeader>
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton size="lg" asChild>
-							<a href="/">
+							<Link href="/">
 								<div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
 									<Telescope className="size-4" />
 								</div>
@@ -77,7 +81,7 @@ export function AppSidebar() {
 										v0.0.1
 									</span>
 								</div>
-							</a>
+							</Link>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>
@@ -85,9 +89,15 @@ export function AppSidebar() {
 			<SidebarContent>
 				<NavSection title="Workspace & Analytics" sections={data.analytics} />
 				<NavSection title="Market Database" sections={data.market} />
-				<NavSection title="Administration" sections={data.administration} />
+				{/* Hidden for normal users; the API enforces the same rule with
+				    requireAdmin, so this is presentation only */}
+				{user?.role === "admin" && (
+					<NavSection title="Administration" sections={data.administration} />
+				)}
 			</SidebarContent>
-			<SidebarFooter />
+			<SidebarFooter>
+				<NavUser />
+			</SidebarFooter>
 		</Sidebar>
 	);
 }

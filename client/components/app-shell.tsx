@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -11,11 +10,6 @@ import { Button } from "@/components/ui/button";
 import { AppSidebar } from "./sidebar/app-sidebar";
 import { SidebarProvider, SidebarTrigger } from "./ui/sidebar";
 import { Separator } from "@/components/ui/separator";
-
-const navigation = [
-	{ href: "/queries", label: "Queries" },
-	{ href: "/settings", label: "Settings" },
-];
 
 function ThemeToggle() {
 	const { theme, setTheme } = useTheme();
@@ -35,6 +29,9 @@ function ThemeToggle() {
 }
 
 const routeTitles: Record<string, string> = {
+	"/dashboard": "Dashboard",
+	"/browse": "Games List",
+	"/settings": "Settings",
 	"/sync": "Sync Steam Data",
 	"/chart": "Chart Creator",
 };
@@ -53,6 +50,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 						<h1 className="text-sm font-semibold">
 							{routeTitles[pathname] || "Page Title"}
 						</h1>
+						<div className="ml-auto">
+							<ThemeToggle />
+						</div>
 					</header>
 					<div className="mt-6 mx-auto w-full flex flex-col justify-center min-h-[88vh]">
 						{children}

@@ -2,12 +2,12 @@
 
 import { z } from "zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useChartState } from "@/app/chart/_hooks/use-chart-state";
-import { ChartPrimaryControls } from "@/app/chart/_components/chart-primary-controls";
-import { ChartAxisControls } from "@/app/chart/_components/chart-axis-controls";
-import { ChartModifierControls } from "@/app/chart/_components/chart-modifier-controls";
-import { ChartDataDisplay } from "@/app/chart/_components/chart-data-display";
-import { ChartFilterPanel } from "@/app/chart/_components/chart-filter-panel";
+import { useChartState } from "@/app/(app)/chart/_hooks/use-chart-state";
+import { ChartPrimaryControls } from "@/app/(app)/chart/_components/chart-primary-controls";
+import { ChartAxisControls } from "@/app/(app)/chart/_components/chart-axis-controls";
+import { ChartModifierControls } from "@/app/(app)/chart/_components/chart-modifier-controls";
+import { ChartDataDisplay } from "@/app/(app)/chart/_components/chart-data-display";
+import { ChartFilterPanel } from "@/app/(app)/chart/_components/chart-filter-panel";
 
 const bucketSchema = z.number().finite().int().positive();
 

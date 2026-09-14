@@ -3,7 +3,7 @@ import { Poppins } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { cn } from "@/lib/utils";
-import { AppShell } from "@/components/app-shell";
+import { AuthProvider } from "@/components/auth/auth-provider";
 
 export const metadata: Metadata = {
 	title: "Steamanalyzer",
@@ -34,7 +34,9 @@ export default function RootLayout({
 					enableSystem
 					disableTransitionOnChange
 				>
-					<AppShell>{children}</AppShell>
+					{/* Sits above the route groups so both the app shell and the
+					    auth pages can read the signed-in user */}
+					<AuthProvider>{children}</AuthProvider>
 				</ThemeProvider>
 			</body>
 		</html>

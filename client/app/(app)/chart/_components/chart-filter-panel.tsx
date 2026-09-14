@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { QuestionTooltip } from "@/components/util/question-tooltip";
-import { ChartFilterChipSelect } from "@/app/chart/_components/chart-filter-chip-select";
+import { ChartFilterChipSelect } from "@/app/(app)/chart/_components/chart-filter-chip-select";
 import {
   ChartFilterMode,
   ChartFilters,
