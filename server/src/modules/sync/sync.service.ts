@@ -8,7 +8,11 @@ import {
 	upsertCategories,
 } from "./sync.repository";
 
-import { SteamQueryResponse } from "./sync.types";
+import { SteamQueryResponse, SyncOutcome } from "./sync.types";
+import {
+	ensureDefaultTagMultipliers,
+	getSteamApiKey,
+} from "@/modules/appSettings/appSettings.service";
 
 const BATCH_SIZE = 1000;
 
@@ -37,11 +41,11 @@ const fetchSteamGames = async (query: ReturnType<typeof fetchGamesQuery>) => {
 	return response.json() as Promise<SteamQueryResponse>;
 };
 
-const runGameSync = async (startAt: number) => {
+const runGameSync = async (startAt: number, apiKey: string) => {
 	let start = startAt;
 
 	while (!syncStopRequested) {
-		const response = await fetchSteamGames(fetchGamesQuery(start));
+		const response = await fetchSteamGames(fetchGamesQuery(start, apiKey));
 		const storeItems = response.response?.store_items ?? [];
 		totalGames = response.response?.metadata?.total_matching_records ?? 0;
 
@@ -62,9 +66,21 @@ const runGameSync = async (startAt: number) => {
 	}
 };
 
-export const startGameSync = async (startAt = 0) => {
+export const startGameSync = async (startAt = 0): Promise<SyncOutcome> => {
 	if (syncPromise) {
-		return { message: "Game sync already running" };
+		return { status: "running", message: "Game sync already running" };
+	}
+
+	// The Steam API key lives only in the database. Without it Steam sees an
+	// unauthenticated request and returns nothing, so fail here rather than
+	// inside the detached promise where the rejection is only logged.
+	const apiKey = await getSteamApiKey();
+	if (!apiKey) {
+		return {
+			status: "misconfigured",
+			message:
+				"No Steam API key is configured. Add one under Administration > App Settings.",
+		};
 	}
 
 	//sync tags/categories first
@@ -73,7 +89,7 @@ export const startGameSync = async (startAt = 0) => {
 
 	syncStopRequested = false;
 	totalFetched = startAt;
-	syncPromise = runGameSync(startAt)
+	syncPromise = runGameSync(startAt, apiKey)
 		.catch((error) => {
 			console.error("Game sync failed:", error);
 		})
@@ -82,18 +98,18 @@ export const startGameSync = async (startAt = 0) => {
 			syncStopRequested = false;
 		});
 
-	return { message: "Game sync started" };
+	return { status: "started", message: "Game sync started" };
 };
 
-export const stopGameSync = async () => {
+export const stopGameSync = async (): Promise<SyncOutcome> => {
 	if (!syncPromise) {
-		return { message: "Game sync not running" };
+		return { status: "idle", message: "Game sync not running" };
 	}
 
 	syncStopRequested = true;
 	await syncPromise;
 
-	return { message: "Game sync stopped" };
+	return { status: "stopped", message: "Game sync stopped" };
 };
 
 export const getSyncStatus = async () => {
@@ -129,6 +145,10 @@ export const syncTags = async () => {
 
 	const data = await response.json();
 	await upsertTags(data);
+
+	// The default tag multipliers reference tags by name, so they can only be
+	// seeded once the tags table has been populated
+	await ensureDefaultTagMultipliers();
 
 	return { message: "Game tags fetched and upserted" };
 };

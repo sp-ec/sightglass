@@ -22,6 +22,7 @@ import {
 	SESSION_TTL_MS,
 	validationResult,
 } from "@/modules/auth/auth.types";
+import { isRegistrationOpen } from "@/modules/appSettings/appSettings.service";
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
@@ -161,9 +162,17 @@ const createSession = async (user: authUser): Promise<authSession> => {
 const isUniqueViolation = (error: unknown): boolean =>
 	isRecord(error) && error.code === "23505";
 
-export const getAuthStatus = async (): Promise<{ initialized: boolean }> => {
+// registrationEnabled rides along on this anonymous endpoint so the signup page
+// can hide its form without opening the whole app settings object to the public
+export const getAuthStatus = async (): Promise<{
+	initialized: boolean;
+	registrationEnabled: boolean;
+}> => {
 	const total = await countUsers();
-	return { initialized: total > 0 };
+	return {
+		initialized: total > 0,
+		registrationEnabled: await isRegistrationOpen(),
+	};
 };
 
 export const registerInitialAdmin = async (
@@ -200,7 +209,7 @@ export const registerInitialAdmin = async (
 };
 
 export const registerUser = async (body: unknown): Promise<registerOutcome> => {
-	if (process.env.ALLOW_PUBLIC_SIGNUP === "false") {
+	if (!(await isRegistrationOpen())) {
 		return { status: "forbidden", message: "Sign-ups are currently disabled" };
 	}
 

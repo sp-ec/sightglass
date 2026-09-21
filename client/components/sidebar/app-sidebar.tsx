@@ -17,6 +17,7 @@ import {
 	BriefcaseBusiness,
 	Tag,
 	Telescope,
+	Settings2,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -25,11 +26,11 @@ import { NavUser } from "./nav-user";
 
 const data = {
 	analytics: [
-		{
-			name: "Dashboard",
-			url: "/dashboard",
-			icon: LayoutDashboard,
-		},
+		// {
+		// 	name: "Dashboard",
+		// 	url: "/dashboard",
+		// 	icon: LayoutDashboard,
+		// },
 		{
 			name: "Chart Creator",
 			url: "/chart",
@@ -59,6 +60,11 @@ const data = {
 			url: "/sync",
 			icon: CloudSync,
 		},
+		{
+			name: "App Settings",
+			url: "/admin/app-settings",
+			icon: Settings2,
+		},
 	],
 };
 
@@ -76,7 +82,7 @@ export function AppSidebar() {
 									<Telescope className="size-4" />
 								</div>
 								<div className="grid flex-1 text-left text-sm leading-tight">
-									<span className="truncate font-medium">SteamScope</span>
+									<span className="truncate font-medium">Sightglass</span>
 									<span className="truncate text-xs text-muted-foreground">
 										v0.0.1
 									</span>

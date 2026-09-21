@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { LucideRefreshCcw, Square } from "lucide-react";
 import { formatAssetUrl } from "@/lib/utils";
+import { readErrorMessage } from "@/lib/api";
 
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -34,6 +35,7 @@ type SyncInfo = {
 export default function SyncPage() {
 	const [syncInfo, setSyncInfo] = useState<SyncInfo | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [actionError, setActionError] = useState<string | null>(null);
 
 	const loadStatus = async () => {
 		const response = await fetch(
@@ -79,6 +81,7 @@ export default function SyncPage() {
 
 	const handleSyncAction = async () => {
 		setIsSubmitting(true);
+		setActionError(null);
 
 		try {
 			if (syncInfo?.status === "running") {
@@ -94,13 +97,24 @@ export default function SyncPage() {
 					? syncInfo.fetched
 					: 0;
 
-			await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sync/start`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
+			const response = await fetch(
+				`${process.env.NEXT_PUBLIC_API_URL}/sync/start`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({ startAt }),
 				},
-				body: JSON.stringify({ startAt }),
-			});
+			);
+
+			// A missing Steam API key comes back as a 400 and would otherwise look
+			// like a sync that started and then did nothing
+			if (!response.ok) {
+				setActionError(
+					await readErrorMessage(response, "Failed to start the sync"),
+				);
+			}
 		} finally {
 			await loadStatus();
 			setIsSubmitting(false);
@@ -109,6 +123,14 @@ export default function SyncPage() {
 
 	return (
 		<div className="space-y-16 flex flex-col place-items-center justify-center">
+			{actionError && (
+				<div
+					role="alert"
+					className="w-full max-w-lg rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
+				>
+					{actionError}
+				</div>
+			)}
 			{showCompleted ? (
 				<div className="rounded-md border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-700 max-w-lg w-full">
 					Sync Completed at{" "}

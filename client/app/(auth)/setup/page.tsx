@@ -38,7 +38,7 @@ const fields = [
 export default function SetupPage() {
 	const router = useRouter();
 	const { refresh } = useAuth();
-	const checking = useInitStatus(false, "/login");
+	const { checking } = useInitStatus(false, "/login");
 
 	const form = useAuthForm({
 		initialValues: {

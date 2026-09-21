@@ -5,8 +5,16 @@ import { useRouter } from "next/navigation";
 
 // The proxy cannot know whether the app has been initialized without a network
 // call, so the auth pages resolve it themselves and redirect to the right one.
-export const useInitStatus = (expected: boolean, redirectTo: string) => {
+type initStatus = { checking: boolean; registrationEnabled: boolean };
+
+export const useInitStatus = (
+	expected: boolean,
+	redirectTo: string,
+): initStatus => {
 	const [checking, setChecking] = React.useState(true);
+	// Defaults open so a failed fetch never hides a working sign-up form; the
+	// server rejects the submission either way
+	const [registrationEnabled, setRegistrationEnabled] = React.useState(true);
 	const router = useRouter();
 
 	React.useEffect(() => {
@@ -21,7 +29,10 @@ export const useInitStatus = (expected: boolean, redirectTo: string) => {
 					throw new Error("Failed to read initialization status");
 				}
 
-				const body = (await response.json()) as { initialized: boolean };
+				const body = (await response.json()) as {
+					initialized: boolean;
+					registrationEnabled: boolean;
+				};
 				if (!active) {
 					return;
 				}
@@ -31,6 +42,7 @@ export const useInitStatus = (expected: boolean, redirectTo: string) => {
 					return;
 				}
 
+				setRegistrationEnabled(body.registrationEnabled);
 				setChecking(false);
 			} catch {
 				// Let the page render; the server rejects the submission if it is
@@ -48,5 +60,5 @@ export const useInitStatus = (expected: boolean, redirectTo: string) => {
 		};
 	}, [expected, redirectTo, router]);
 
-	return checking;
+	return { checking, registrationEnabled };
 };

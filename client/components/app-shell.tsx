@@ -34,6 +34,7 @@ const routeTitles: Record<string, string> = {
 	"/settings": "Settings",
 	"/sync": "Sync Steam Data",
 	"/chart": "Chart Creator",
+	"/admin/app-settings": "App Settings",
 };
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -50,9 +51,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 						<h1 className="text-sm font-semibold">
 							{routeTitles[pathname] || "Page Title"}
 						</h1>
-						<div className="ml-auto">
+						{/* <div className="ml-auto">
 							<ThemeToggle />
-						</div>
+						</div> */}
 					</header>
 					<div className="mt-6 mx-auto w-full flex flex-col justify-center min-h-[88vh]">
 						{children}

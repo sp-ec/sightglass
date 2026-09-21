@@ -38,7 +38,7 @@ function LoginForm() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const { refresh } = useAuth();
-	const checking = useInitStatus(true, "/setup");
+	const { checking } = useInitStatus(true, "/setup");
 
 	const form = useAuthForm({
 		initialValues: { email: "", password: "" },
@@ -62,7 +62,7 @@ function LoginForm() {
 	return (
 		<AuthForm
 			title="Sign in"
-			description="Welcome back to SteamScope."
+			description="Sign in to your account to continue."
 			fields={fields}
 			submitLabel="Sign in"
 			footer={

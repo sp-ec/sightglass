@@ -27,3 +27,10 @@ export type SyncStatus = {
     fetched: number;
     total: number;
 }
+
+// Discriminated so the controller can answer 400 for a misconfigured app
+// without the service throwing
+export type SyncOutcome = {
+    status: "started" | "running" | "stopped" | "idle" | "misconfigured";
+    message: string;
+};

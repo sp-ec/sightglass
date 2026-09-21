@@ -32,6 +32,18 @@ export const postJson = async (
 		body: JSON.stringify(body),
 	});
 
+// Unlike postJson this goes through apiFetch: a 401 on an authenticated page
+// should surface as UnauthorizedError, whereas the login form reads the body
+export const putJson = async (
+	path: string,
+	body: unknown,
+): Promise<Response> =>
+	apiFetch(path, {
+		method: "PUT",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+
 // Falls back to a generic message when the server returns a non-JSON error
 export const readErrorMessage = async (
 	response: Response,

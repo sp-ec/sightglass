@@ -7,7 +7,7 @@ const publicPaths = ["/login", "/signup", "/setup"];
 // Optimistic gate only. The real boundary is requireAdmin on the Express API,
 // which reads the role from the database. A user who edits the sa_role cookie
 // can make this page render, and then every request it makes returns 403.
-const adminPaths = ["/sync"];
+const adminPaths = ["/sync", "/admin"];
 
 export function proxy(request: NextRequest) {
 	const { pathname } = request.nextUrl;

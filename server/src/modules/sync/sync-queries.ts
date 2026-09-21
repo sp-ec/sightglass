@@ -1,6 +1,8 @@
-export const fetchGamesQuery = (start: number) => {
+// The key is passed in rather than read here so this stays a pure, synchronous
+// builder: it now lives in the database, and fetching it is the caller's job
+export const fetchGamesQuery = (start: number, apiKey: string) => {
   return {
-		key: process.env.STEAM_API_KEY,
+		key: apiKey,
 		query_name: "steamanalyzer_fetch_games",
 		query: {
 			filters: {
