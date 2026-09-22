@@ -65,7 +65,7 @@ function BasicGameInfo({ gameInfo, gameDevelopers, gamePublishers, gamePlatforms
 						View Store Page
 					</Button>
 				</div>
-				<div className="w-1/2 bg-zinc-800 rounded-md p-4 max-h-58 overflow-y-scroll ">
+				<div className="w-1/2 bg-muted text-foreground rounded-md p-4 max-h-58 overflow-y-scroll ">
 					<p>
 						{gameInfo.short_description
 							? gameInfo.short_description

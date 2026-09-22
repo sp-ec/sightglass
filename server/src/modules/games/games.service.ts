@@ -4,11 +4,17 @@ import {
 	getGameChartAggregation,
 	findAllTags,
 	findAllLanguages,
+	findGamesList,
+	countGamesList,
+	findRelatedApps,
 } from "./games.repository";
 import {
 	gameAssets,
 	gameBasicInfo,
 	gameResponse,
+	gameListEntry,
+	gameListResponse,
+	GAMES_PAGE_SIZE,
 	chartAggregationMode,
 	chartFilters,
 	chartFilterMode,
@@ -18,9 +24,21 @@ import {
 	CHART_BUCKET_MAX,
 } from "./games.types";
 import { getEstimationSettings } from "@/modules/appSettings/appSettings.service";
-import { buildEstimationSql } from "@/modules/appSettings/estimation";
+import {
+	buildEstimationSql,
+	estimateGame,
+} from "@/modules/appSettings/estimation";
 
-function formatAssetUrl(url: string, filename: string): string {
+// Steam does not ship every asset for every game, and a missing filename would
+// otherwise be stringified into the URL as "null" and 404
+function formatAssetUrl(
+	url: string | null,
+	filename: string | null,
+): string | null {
+	if (!url || !filename) {
+		return null;
+	}
+
 	let formattedUrl =
 		"https://shared.akamai.steamstatic.com/store_item_assets/" + url;
 	return formattedUrl.replace("${FILENAME}", filename);
@@ -56,6 +74,49 @@ export const searchGamesByTitle = async (query: string) => {
 	}
 
 	return await findGameByTitle(query);
+};
+
+// Page and search come straight off the query string, so both are clamped here
+export const fetchGamesList = async (
+	rawPage: string | undefined,
+	rawSearch: string | undefined,
+): Promise<gameListResponse> => {
+	const parsedPage = Number(rawPage);
+	const page =
+		Number.isFinite(parsedPage) && parsedPage > 0 ? Math.floor(parsedPage) : 1;
+
+	const search = rawSearch?.trim() ? rawSearch.trim() : null;
+
+	const [rows, total] = await Promise.all([
+		findGamesList(search, GAMES_PAGE_SIZE, (page - 1) * GAMES_PAGE_SIZE),
+		countGamesList(search),
+	]);
+
+	const games: gameListEntry[] = rows.map((row) => ({
+		app_id: row.app_id,
+		name: row.name,
+		short_description: row.short_description,
+		type: row.type,
+		parent_app_id: row.parent_app_id,
+		small_capsule:
+			row.asset_url_format && row.small_capsule
+				? formatAssetUrl(row.asset_url_format, row.small_capsule)
+				: null,
+		review_count: row.review_count,
+		percent_positive: row.percent_positive,
+		review_score: row.review_score,
+		review_score_label: row.review_score_label,
+		tags: row.tags ?? [],
+		is_demo: row.type === 1,
+	}));
+
+	return {
+		games,
+		total,
+		page,
+		page_size: GAMES_PAGE_SIZE,
+		total_pages: Math.max(1, Math.ceil(total / GAMES_PAGE_SIZE)),
+	};
 };
 
 export const fetchGameById = async (appId: string) => {
@@ -114,7 +175,32 @@ export const fetchGameById = async (appId: string) => {
 		languages: gameData?.languages,
 	};
 
-	return gameResponse;
+	const [estimationSettings, related] = await Promise.all([
+		getEstimationSettings(),
+		findRelatedApps(gameData.game.app_id, gameData.game.parent_app_id),
+	]);
+
+	const estimate = estimateGame(estimationSettings, {
+		reviewCount: gameData.game.review_count ?? 0,
+		percentPositive: gameData.game.percent_positive ?? 0,
+		priceInCents: gameData.game.price_in_cents ?? 0,
+		releaseDate: gameData.game.steam_release_date ?? null,
+		tagIds: (gameData.tags ?? []).map((tag) => tag.id),
+	});
+
+	return {
+		...gameResponse,
+		is_demo: gameData.game.type === 1,
+		// A demo links to its parent; a full game links to its demo
+		parent_app: related.parent,
+		demo_app: related.demo,
+		estimate: {
+			units: estimate.units,
+			units_low: estimate.unitsLow,
+			units_high: estimate.unitsHigh,
+			revenue_in_cents: estimate.revenueInCents,
+		},
+	};
 };
 
 const parseNumericRange = (value: unknown): chartRangeFilter | undefined => {

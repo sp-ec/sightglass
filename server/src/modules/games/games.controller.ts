@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import {
 	fetchGameById,
+	fetchGamesList,
 	searchGamesByTitle,
 	getChartAggregation,
 	fetchTagOptions,
@@ -14,6 +15,20 @@ export const getGamesByTitle = async (req: Request, res: Response) => {
 	} catch (error) {
 		return res.status(500).json({
 			message: "Failed to search games",
+		});
+	}
+};
+
+export const getGamesList = async (req: Request, res: Response) => {
+	try {
+		const result = await fetchGamesList(
+			req.query.page as string | undefined,
+			req.query.search as string | undefined,
+		);
+		return res.status(200).json(result);
+	} catch (error) {
+		return res.status(500).json({
+			message: "Failed to list games",
 		});
 	}
 };

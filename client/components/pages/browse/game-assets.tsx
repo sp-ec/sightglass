@@ -5,7 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 
 type GameAssetDisplayProps = {
-	url: string;
+	// Steam does not ship every asset for every game
+	url: string | null;
 	name: string;
 	width: number;
 	height: number;
@@ -24,24 +25,33 @@ function GameAssetDisplay({
 	size,
 }: GameAssetDisplayProps) {
 	const fallbackUrl = "/images/not-found.png";
-	const [imageUrl, setImageUrl] = useState(url);
+	const [imageUrl, setImageUrl] = useState(url ?? fallbackUrl);
 
 	useEffect(() => {
-		setImageUrl(url);
+		setImageUrl(url ?? fallbackUrl);
 	}, [url]);
+
+	const image = (
+		<Image
+			src={imageUrl}
+			alt={name}
+			width={width}
+			height={height}
+			className={`block rounded-md w-${size ? size : "0"}`}
+			onError={() => setImageUrl(fallbackUrl)}
+		/>
+	);
 
 	return (
 		<div className="flex flex-col gap-2">
-			<Link href={imageUrl} target="_blank" rel="noopener noreferrer">
-				<Image
-					src={imageUrl}
-					alt={name}
-					width={width}
-					height={height}
-					className={`block rounded-md w-${size ? size : "0"}`}
-					onError={() => setImageUrl(fallbackUrl)}
-				/>
-			</Link>
+			{/* Only a real asset is linkable; a missing one shows the placeholder */}
+			{url ? (
+				<Link href={url} target="_blank" rel="noopener noreferrer">
+					{image}
+				</Link>
+			) : (
+				image
+			)}
 
 			<p className="text-sm text-muted-foreground">{name}</p>
 		</div>

@@ -1,147 +1,72 @@
 "use client";
 
-import {
-	Card,
-	CardAction,
-	CardContent,
-	CardDescription,
-	CardFooter,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
-import { useEffect, useState } from "react";
-import {
-	Combobox,
-	ComboboxContent,
-	ComboboxEmpty,
-	ComboboxInput,
-	ComboboxItem,
-	ComboboxList,
-} from "@/components/ui/combobox";
-
-import BasicGameInfo from "@/components/pages/browse/basic-game-info";
-import GameReviewSummary from "@/components/pages/browse/game-review-summary";
-import GameTagInfo from "@/components/pages/browse/game-tag-info";
-import GameLanguages from "@/components/pages/browse/game-languages";
-import GameAssets from "@/components/pages/browse/game-assets";
-
-const DEBOUNCE_DELAY = 200;
+import { Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { GameListRow } from "./_components/game-list-row";
+import { GamesPagination } from "./_components/games-pagination";
+import { useGamesList } from "./_hooks/use-games-list";
 
 export default function BrowsePage() {
-	const [searchTerm, setSearchTerm] = useState("");
-	const [results, setResults] = useState<{ app_id: string; name: string }[]>(
-		[],
-	);
+	const { data, loading, error, search, page, setSearch, setPage } =
+		useGamesList();
 
-	const [selectedItem, setSelectedItem] = useState<string>("");
-	const [gameData, setGameData] = useState<any>(null);
-
-	useEffect(() => {
-		if (!searchTerm.trim()) {
-			setResults([]);
-			return;
-		}
-
-		const delayDebounceFn = setTimeout(async () => {
-			try {
-				const res = await fetch(
-					`${process.env.NEXT_PUBLIC_API_URL}/games/search?title=${encodeURIComponent(searchTerm)}`,
-				);
-				const data = await res.json();
-				setResults(data);
-			} catch (error) {
-				console.error("Search failed", error);
-			}
-		}, DEBOUNCE_DELAY);
-
-		return () => clearTimeout(delayDebounceFn);
-	}, [searchTerm]);
-
-	useEffect(() => {
-		if (selectedItem) {
-			console.log("Selected game ID:", selectedItem);
-			const fetchGameDetails = async () => {
-				try {
-					const res = await fetch(
-						`${process.env.NEXT_PUBLIC_API_URL}/games/${selectedItem}`,
-					);
-					const data = await res.json();
-					setGameData(data);
-				} catch (error) {
-					console.error("Failed to fetch game details", error);
-				}
-			};
-			fetchGameDetails();
-		}
-	}, [selectedItem]);
+	const changePage = (next: number) => {
+		setPage(next);
+		window.scrollTo({ top: 0, behavior: "smooth" });
+	};
 
 	return (
-		<div className="flex flex-col items-center gap-8 w-full max-w-5xl mx-auto">
-			<div className="flex flex-row gap-8 min-h-full min-w-full justify-center">
-				<div className="flex flex-col items-center justify-start min-h-full gap-8 max-w-lg w-full">
-					<Card className="w-full max-w-lg">
-						<CardHeader>
-							<CardTitle>Browse Games</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<Combobox items={results} autoHighlight>
-								<ComboboxInput
-									placeholder="Search for a game"
-									onChange={(e) =>
-										setSearchTerm((e.target as HTMLInputElement).value)
-									}
-									value={searchTerm}
-								/>
-								<ComboboxContent>
-									<ComboboxEmpty>No items found.</ComboboxEmpty>
-									<ComboboxList>
-										{results.map((item) => (
-											<ComboboxItem
-												key={item.app_id}
-												value={`${item.name}`}
-												onSelect={() => {
-													setSelectedItem(item.app_id);
-													setSearchTerm(item.name);
-												}}
-												onClick={() => {
-													setSelectedItem(item.app_id);
-													setSearchTerm(item.name);
-												}}
-												onPointerDown={(e) => {
-													e.preventDefault();
-													setSelectedItem(item.app_id);
-													setSearchTerm(item.name);
-												}}
-											>
-												{item.name}
-											</ComboboxItem>
-										))}
-									</ComboboxList>
-								</ComboboxContent>
-							</Combobox>
-						</CardContent>
-					</Card>
-					{gameData?.game && (
-						<>
-							<BasicGameInfo
-								gameInfo={gameData.game}
-								gameDevelopers={gameData.developers}
-								gamePublishers={gameData.publishers}
-								gamePlatforms={gameData.platforms}
-							/>
-							<GameReviewSummary gameReviewData={gameData.reviews} />
-						</>
-					)}
-				</div>
-
-				{gameData && (
-					<div className="flex flex-col items-center justify-start min-h-full gap-8 max-w-lg w-full">
-						<GameTagInfo tagData={gameData.tags} />
-						<GameLanguages languageData={gameData.languages} />
-					</div>
-				)}
+		<div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+			<div className="relative">
+				<Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+				<Input
+					type="search"
+					placeholder="Search games and demos"
+					className="pl-9"
+					value={search}
+					onChange={(e) => setSearch(e.target.value)}
+				/>
 			</div>
-			{gameData?.assets && <GameAssets assetData={gameData.assets} />}
+
+			{error && (
+				<p role="alert" className="text-sm text-destructive">
+					{error}
+				</p>
+			)}
+
+			{/* Only the first load shows skeletons; later loads keep the old rows
+			    on screen so the list does not flash on every keystroke */}
+			{loading && !data ? (
+				<div className="flex flex-col gap-3">
+					{Array.from({ length: 10 }).map((_, i) => (
+						<Skeleton key={i} className="h-29.75 w-full" />
+					))}
+				</div>
+			) : data && data.games.length === 0 ? (
+				<p className="py-12 text-center text-sm text-muted-foreground">
+					No games match “{search}”.
+				</p>
+			) : (
+				<div
+					className={`flex flex-col gap-3 ${loading ? "opacity-60" : ""}`}
+					aria-busy={loading}
+				>
+					{data?.games.map((game) => (
+						<GameListRow key={game.app_id} game={game} />
+					))}
+				</div>
+			)}
+
+			{data && data.games.length > 0 && (
+				<GamesPagination
+					page={data.page}
+					totalPages={data.total_pages}
+					total={data.total}
+					disabled={loading}
+					onPageChange={changePage}
+				/>
+			)}
 		</div>
 	);
 }

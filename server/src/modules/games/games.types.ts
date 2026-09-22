@@ -1,13 +1,14 @@
+// Steam does not ship every asset for every game, so any of these can be absent
 export type gameAssets = {
-    main_capsule?: string;
-    small_capsule?: string;
-    header?: string;
-    page_background?: string;
-    hero_capsule?: string;
-    library_capsule?: string;
-    library_hero?: string;
-    community_icon?: string;
-    logo: string;
+    main_capsule?: string | null;
+    small_capsule?: string | null;
+    header?: string | null;
+    page_background?: string | null;
+    hero_capsule?: string | null;
+    library_capsule?: string | null;
+    library_hero?: string | null;
+    community_icon?: string | null;
+    logo: string | null;
 } | null;
 
 export type gameBasicInfo = {
@@ -51,6 +52,43 @@ export type gameResponse = {
     publishers: gamePublishers,
     languages: gameLanguages
 } | null;
+
+// A row of the paginated games list, straight from the repository
+export type gameListItem = {
+	app_id: number;
+	name: string;
+	short_description: string | null;
+	type: number | null;
+	parent_app_id: number | null;
+	asset_url_format: string | null;
+	small_capsule: string | null;
+	review_count: number | null;
+	percent_positive: number | null;
+	review_score: number | null;
+	review_score_label: string | null;
+	tags: string[];
+};
+
+// The same row with the capsule resolved to a URL, as the client sees it
+export type gameListEntry = Omit<
+	gameListItem,
+	"asset_url_format" | "small_capsule"
+> & {
+	small_capsule: string | null;
+	is_demo: boolean;
+};
+
+export type gameListResponse = {
+	games: gameListEntry[];
+	total: number;
+	page: number;
+	page_size: number;
+	total_pages: number;
+};
+
+export type relatedApp = { app_id: number; name: string };
+
+export const GAMES_PAGE_SIZE = 10;
 
 export type chartAggregationMode =
 	| "review_count"

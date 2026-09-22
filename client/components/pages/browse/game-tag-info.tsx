@@ -18,7 +18,7 @@ function GameTagInfo({ tagData }: GameTagInfoProps) {
 								{tagData.map((tag: any) => (
 									<span
 										key={tag.id}
-										className="border-sky-500 border text-white px-2 py-1 rounded-md"
+										className="border-sky-500 border text-foreground px-2 py-1 rounded-md"
 									>
 										{tag.name}
 										<span className="opacity-50">

@@ -37,6 +37,18 @@ const routeTitles: Record<string, string> = {
 	"/admin/app-settings": "App Settings",
 };
 
+// Dynamic routes cannot be matched exactly, so they fall back to a prefix
+const routeTitlePrefixes: [string, string][] = [["/games/", "Game Details"]];
+
+const titleForPath = (pathname: string): string => {
+	if (routeTitles[pathname]) {
+		return routeTitles[pathname];
+	}
+
+	const prefix = routeTitlePrefixes.find(([path]) => pathname.startsWith(path));
+	return prefix ? prefix[1] : "Page Title";
+};
+
 export function AppShell({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();
 
@@ -49,7 +61,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 						<SidebarTrigger className="cursor-pointer" />
 						<Separator orientation="vertical" />
 						<h1 className="text-sm font-semibold">
-							{routeTitles[pathname] || "Page Title"}
+							{titleForPath(pathname)}
 						</h1>
 						{/* <div className="ml-auto">
 							<ThemeToggle />

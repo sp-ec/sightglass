@@ -15,6 +15,8 @@ import {
 	languageOption,
 	CHART_BUCKET_MIN,
 	CHART_BUCKET_MAX,
+	gameListItem,
+	relatedApp,
 } from "./games.types";
 import { estimationSql } from "@/modules/appSettings/appSettings.types";
 
@@ -79,6 +81,103 @@ export const findGameById = async (appId: string) => {
 	} catch (error) {
 		console.error(error);
 		return null;
+	}
+};
+
+// Matches on substring or trigram similarity. Both are served by
+// games_name_trgm_idx; an empty search matches everything.
+const LIST_SEARCH_SQL = `($1::text IS NULL OR games.name ILIKE '%' || $1 || '%' OR games.name % $1)`;
+
+export const findGamesList = async (
+	search: string | null,
+	limit: number,
+	offset: number,
+): Promise<gameListItem[]> => {
+	try {
+		const result = await pool.query(
+			`SELECT
+				games.app_id,
+				games.name,
+				games.short_description,
+				games.type,
+				games.parent_app_id,
+				game_assets.asset_url_format,
+				game_assets.small_capsule,
+				reviews.review_count,
+				reviews.percent_positive,
+				reviews.review_score,
+				reviews.review_score_label,
+				COALESCE(top_tags.names, ARRAY[]::text[]) AS tags
+			FROM games
+			LEFT JOIN game_assets ON game_assets.game_id = games.app_id
+			LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
+			LEFT JOIN LATERAL (
+				SELECT array_agg(tags.name ORDER BY ranked.weight DESC) AS names
+				FROM (
+					SELECT tag_id, weight
+					FROM game_tags
+					WHERE game_tags.game_id = games.app_id
+					ORDER BY weight DESC
+					LIMIT 5
+				) ranked
+				JOIN tags ON tags.id = ranked.tag_id
+			) top_tags ON TRUE
+			WHERE ${LIST_SEARCH_SQL}
+			ORDER BY
+				CASE WHEN $1::text IS NULL THEN 0 ELSE similarity(games.name, $1) END DESC,
+				reviews.review_count DESC NULLS LAST,
+				games.app_id ASC
+			LIMIT $2 OFFSET $3;`,
+			[search, limit, offset],
+		);
+
+		return result.rows as gameListItem[];
+	} catch (error) {
+		console.error(error);
+		return [];
+	}
+};
+
+export const countGamesList = async (search: string | null): Promise<number> => {
+	try {
+		const result = await pool.query(
+			`SELECT COUNT(*)::int AS count FROM games WHERE ${LIST_SEARCH_SQL};`,
+			[search],
+		);
+
+		return (result.rows[0]?.count as number) ?? 0;
+	} catch (error) {
+		return 0;
+	}
+};
+
+// A demo points at its parent; a full game is pointed at by its demo
+export const findRelatedApps = async (
+	appId: number,
+	parentAppId: number | null,
+): Promise<{ parent: relatedApp | null; demo: relatedApp | null }> => {
+	try {
+		const [parent, demo] = await Promise.all([
+			parentAppId
+				? pool.query(`SELECT app_id, name FROM games WHERE app_id = $1;`, [
+						parentAppId,
+					])
+				: Promise.resolve({ rows: [] }),
+			pool.query(
+				`SELECT app_id, name FROM games
+				WHERE parent_app_id = $1 AND type = 1
+				ORDER BY app_id ASC
+				LIMIT 1;`,
+				[appId],
+			),
+		]);
+
+		return {
+			parent: (parent.rows[0] as relatedApp) ?? null,
+			demo: (demo.rows[0] as relatedApp) ?? null,
+		};
+	} catch (error) {
+		return { parent: null, demo: null };
 	}
 };
 
