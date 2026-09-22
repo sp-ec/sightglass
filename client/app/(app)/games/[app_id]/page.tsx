@@ -9,19 +9,21 @@ import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
-import BasicGameInfo from "@/components/pages/browse/basic-game-info";
-import GameReviewSummary from "@/components/pages/browse/game-review-summary";
-import GameEstimates from "@/components/pages/browse/game-estimates";
-import GameRelatedApps from "@/components/pages/browse/game-related-apps";
-import GameTagInfo from "@/components/pages/browse/game-tag-info";
-import GameLanguages from "@/components/pages/browse/game-languages";
-import GameAssets from "@/components/pages/browse/game-assets";
+import { GameHero } from "./_components/game-hero";
+import { GameStats } from "./_components/game-stats";
+import {
+	GameContent,
+	GameLanguagesCard,
+} from "./_components/game-content";
+import { GameInfoPanel } from "./_components/game-info-panel";
+import { GameAssetGallery } from "./_components/game-asset-gallery";
+import type { GameDetail } from "./game-detail-types";
 
 export default function GameDetailPage() {
 	const params = useParams<{ app_id: string }>();
 	const appId = params.app_id;
 
-	const [gameData, setGameData] = React.useState<any>(null);
+	const [game, setGame] = React.useState<GameDetail | null>(null);
 	const [loading, setLoading] = React.useState(true);
 	const [error, setError] = React.useState<string | null>(null);
 
@@ -45,12 +47,12 @@ export default function GameDetailPage() {
 					throw new Error("Failed to load this game");
 				}
 
-				const body = await response.json();
+				const body = (await response.json()) as GameDetail | null;
 				if (!body?.game) {
 					throw new Error("That game could not be found");
 				}
 
-				setGameData(body);
+				setGame(body);
 			} catch (err) {
 				if ((err as Error).name !== "AbortError") {
 					setError((err as Error).message || "Failed to load this game");
@@ -70,7 +72,7 @@ export default function GameDetailPage() {
 	}, [appId]);
 
 	return (
-		<div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+		<div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
 			<Button variant="ghost" size="sm" className="self-start" asChild>
 				<Link href="/browse">
 					<ArrowLeft />
@@ -85,38 +87,54 @@ export default function GameDetailPage() {
 			)}
 
 			{loading && (
-				<div className="flex flex-col gap-6 lg:flex-row">
-					<Skeleton className="h-96 w-full max-w-lg" />
-					<Skeleton className="h-96 w-full max-w-lg" />
+				<div className="flex flex-col gap-6">
+					<Skeleton className="h-64 w-full rounded-xl" />
+					<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+						{Array.from({ length: 4 }).map((_, i) => (
+							<Skeleton key={i} className="h-28 w-full" />
+						))}
+					</div>
+					<Skeleton className="h-96 w-full" />
 				</div>
 			)}
 
-			{!loading && gameData?.game && (
+			{!loading && game && (
 				<>
-					<div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-						<div className="flex w-full flex-col items-center gap-6">
-							<BasicGameInfo
-								gameInfo={gameData.game}
-								gameDevelopers={gameData.developers}
-								gamePublishers={gameData.publishers}
-								gamePlatforms={gameData.platforms}
-							/>
-							<GameReviewSummary gameReviewData={gameData.reviews} />
-							<GameRelatedApps
-								isDemo={Boolean(gameData.is_demo)}
-								parentApp={gameData.parent_app ?? null}
-								demoApp={gameData.demo_app ?? null}
-							/>
-						</div>
+					<GameHero
+						game={game.game}
+						assets={game.assets}
+						platforms={game.platforms}
+						developers={game.developers}
+						publishers={game.publishers}
+						isDemo={game.is_demo}
+					/>
 
-						<div className="flex w-full flex-col items-center gap-6">
-							<GameEstimates estimate={gameData.estimate ?? null} />
-							<GameTagInfo tagData={gameData.tags} />
-							<GameLanguages languageData={gameData.languages} />
-						</div>
+					<GameStats
+						reviews={game.reviews}
+						estimate={game.estimate}
+						priceInCents={game.game.price_in_cents}
+					/>
+
+					{/* items-start keeps the shorter column from stretching into a gap */}
+					<div className="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+						<GameContent
+							shortDescription={game.game.short_description}
+							tags={game.tags}
+						/>
+						<GameInfoPanel
+							game={game.game}
+							platforms={game.platforms}
+							developers={game.developers}
+							publishers={game.publishers}
+							isDemo={game.is_demo}
+							parentApp={game.parent_app}
+							demoApp={game.demo_app}
+						/>
 					</div>
 
-					{gameData.assets && <GameAssets assetData={gameData.assets} />}
+					<GameLanguagesCard languages={game.languages} />
+
+					<GameAssetGallery assets={game.assets} />
 				</>
 			)}
 		</div>

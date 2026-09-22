@@ -33,7 +33,7 @@ export function GameListRow({ game }: { game: GameListEntry }) {
 				href={`/games/${game.app_id}`}
 				className="flex flex-col gap-4 p-4 sm:flex-row"
 			>
-				<div className="relative h-100px w-full shrink-0 overflow-hidden rounded-md bg-muted sm:w-[231px]">
+				<div className="relative w-full shrink-0 overflow-hidden rounded-md bg-muted sm:w-[231px]">
 					{game.main_capsule ? (
 						<Image
 							src={game.main_capsule}
