@@ -56,18 +56,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 		<div className="min-h-screen bg-background text-foreground">
 			<SidebarProvider>
 				<AppSidebar />
-				<main className="mx-auto w-full p-6 min-h-screen">
-					<header className="flex items-center gap-4">
+				<main className="mx-auto w-full min-h-screen">
+					<header className="flex items-center gap-4 sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-md px-6 py-4">
 						<SidebarTrigger className="cursor-pointer" />
 						<Separator orientation="vertical" />
-						<h1 className="text-sm font-semibold">
-							{titleForPath(pathname)}
-						</h1>
+						<h1 className="text-sm font-semibold">{titleForPath(pathname)}</h1>
 						{/* <div className="ml-auto">
 							<ThemeToggle />
 						</div> */}
 					</header>
-					<div className="mt-6 mx-auto w-full flex flex-col justify-center min-h-[88vh]">
+					<div className="mt-6 mx-auto w-full flex flex-col justify-center min-h-[88vh] p-8">
 						{children}
 					</div>
 				</main>

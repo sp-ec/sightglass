@@ -102,6 +102,7 @@ export const findGamesList = async (
 				games.type,
 				games.parent_app_id,
 				game_assets.asset_url_format,
+				game_assets.main_capsule,
 				game_assets.small_capsule,
 				reviews.review_count,
 				reviews.percent_positive,

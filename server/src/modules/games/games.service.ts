@@ -98,6 +98,10 @@ export const fetchGamesList = async (
 		short_description: row.short_description,
 		type: row.type,
 		parent_app_id: row.parent_app_id,
+		main_capsule:
+			row.asset_url_format && row.main_capsule
+				? formatAssetUrl(row.asset_url_format, row.main_capsule)
+				: null,
 		small_capsule:
 			row.asset_url_format && row.small_capsule
 				? formatAssetUrl(row.asset_url_format, row.small_capsule)

@@ -57,7 +57,7 @@ const data = {
 	administration: [
 		{
 			name: "Sync Steam Data",
-			url: "/sync",
+			url: "/admin/sync",
 			icon: CloudSync,
 		},
 		{

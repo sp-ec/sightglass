@@ -61,6 +61,7 @@ export type gameListItem = {
 	type: number | null;
 	parent_app_id: number | null;
 	asset_url_format: string | null;
+	main_capsule: string | null;
 	small_capsule: string | null;
 	review_count: number | null;
 	percent_positive: number | null;
@@ -72,8 +73,9 @@ export type gameListItem = {
 // The same row with the capsule resolved to a URL, as the client sees it
 export type gameListEntry = Omit<
 	gameListItem,
-	"asset_url_format" | "small_capsule"
+	"asset_url_format" | "main_capsule" | "small_capsule"
 > & {
+	main_capsule: string | null;
 	small_capsule: string | null;
 	is_demo: boolean;
 };

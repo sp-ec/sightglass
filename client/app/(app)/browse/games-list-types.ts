@@ -4,7 +4,7 @@ export type GameListEntry = {
 	short_description: string | null;
 	type: number | null;
 	parent_app_id: number | null;
-	small_capsule: string | null;
+	main_capsule: string | null;
 	review_count: number | null;
 	percent_positive: number | null;
 	review_score: number | null;
