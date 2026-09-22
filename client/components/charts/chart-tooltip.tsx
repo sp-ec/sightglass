@@ -21,13 +21,28 @@ const buildTooltip = (point: ChartPoint): string => {
 	const unitsLow = num(point.aggregate_estimated_units_low);
 	const unitsHigh = num(point.aggregate_estimated_units_high);
 	const revenue = num(point.aggregate_estimated_revenue_in_cents);
+	const revenueLow = num(point.aggregate_estimated_revenue_low_in_cents);
+	const revenueHigh = num(point.aggregate_estimated_revenue_high_in_cents);
 
-	const unitsText =
-		units === null
-			? null
-			: unitsLow !== null && unitsHigh !== null && unitsLow !== unitsHigh
-				? `${formatCount(units)} (${formatCount(unitsLow)} – ${formatCount(unitsHigh)})`
-				: formatCount(units);
+	// The band collapses to a single number when low and high agree, which is
+	// what an unconfigured uncertainty band produces
+	const withRange = (
+		value: number | null,
+		low: number | null,
+		high: number | null,
+		format: (n: number) => string,
+	): string | null => {
+		if (value === null) {
+			return null;
+		}
+
+		return low !== null && high !== null && low !== high
+			? `${format(value)} (${format(low)} – ${format(high)})`
+			: format(value);
+	};
+
+	const unitsText = withRange(units, unitsLow, unitsHigh, formatCount);
+	const revenueText = withRange(revenue, revenueLow, revenueHigh, formatCents);
 
 	const price = num(point.aggregate_price_in_cents);
 	const minValue = num(point.min_value);
@@ -41,7 +56,7 @@ const buildTooltip = (point: ChartPoint): string => {
 		${row("Positive %", num(point.aggregate_percent_positive)?.toString() ?? null)}
 		${row("Price", price === null ? null : formatPrice(price))}
 		${row("Est. Units", unitsText)}
-		${row("Est. Revenue", revenue === null ? null : formatCents(revenue))}
+		${row("Est. Revenue", revenueText)}
 		${row("Value", num(point.aggregate_value)?.toString() ?? null)}
 		${minValue === null || maxValue === null ? "" : `<div>Range: ${minValue} - ${maxValue}</div>`}
 	`;

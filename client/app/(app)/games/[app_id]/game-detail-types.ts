@@ -55,6 +55,8 @@ export type GameEstimate = {
 	units_low: number;
 	units_high: number;
 	revenue_in_cents: number;
+	revenue_low_in_cents: number;
+	revenue_high_in_cents: number;
 } | null;
 
 export type GameDetail = {

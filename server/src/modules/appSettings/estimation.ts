@@ -167,11 +167,16 @@ export const estimateGame = (
 
 	const band = findUncertaintyBand(settings.uncertaintyBands, reviewCount);
 
+	// Revenue is proportional to units, so the same band brackets both
+	const revenuePerUnit = priceInCents * realizedShare * (1 - refundRate);
+
 	return {
 		units,
 		unitsLow: units * band.low,
 		unitsHigh: units * band.high,
-		revenueInCents: units * priceInCents * realizedShare * (1 - refundRate),
+		revenueInCents: units * revenuePerUnit,
+		revenueLowInCents: units * band.low * revenuePerUnit,
+		revenueHighInCents: units * band.high * revenuePerUnit,
 	};
 };
 
@@ -299,27 +304,36 @@ export const buildEstimationSql = (
 			),
 		);
 
-	// One row per game, built once and joined in. Two things make this the
-	// cheap shape: the units expression is evaluated a single time in a LATERAL
-	// and the derived values reference that result instead of re-expanding the
-	// whole formula, and the estimate is computed per *game* rather than per
-	// output row — tag mode duplicates each game by tags_counted, which would
-	// otherwise multiply the cost again.
+	// One row per game, built once and joined in. Three things make this the
+	// cheap shape: every sub-expression is evaluated a single time in the
+	// LATERAL, the six outputs are plain products of those results rather than
+	// re-expansions of the whole formula, and the estimate is computed per
+	// *game* rather than per output row — tag mode duplicates each game by
+	// tags_counted, which would otherwise multiply the cost again.
+	// Revenue is proportional to units, so one revenue-per-unit factor serves
+	// the point estimate and both ends of the band.
 	const cteSql = `${tagMultCteSql ? `${tagMultCteSql},` : ""}
         game_estimates AS (
             SELECT
                 games.app_id AS game_id,
                 est.units AS estimated_units,
-                est.units * ${bandSql("low")} AS estimated_units_low,
-                est.units * ${bandSql("high")} AS estimated_units_high,
-                est.units
-                    * COALESCE(games.price_in_cents, 0)::double precision
-                    * ${realizedShareSql}
-                    * (1 - ${refundRateSql}) AS estimated_revenue_in_cents
+                est.units * est.band_low AS estimated_units_low,
+                est.units * est.band_high AS estimated_units_high,
+                est.units * est.revenue_per_unit AS estimated_revenue_in_cents,
+                est.units * est.band_low * est.revenue_per_unit AS estimated_revenue_low_in_cents,
+                est.units * est.band_high * est.revenue_per_unit AS estimated_revenue_high_in_cents
             FROM games
             LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
             ${tagMultJoinSql}
-            CROSS JOIN LATERAL (SELECT ${rawUnitsSql} AS units) est
+            CROSS JOIN LATERAL (
+                SELECT
+                    ${rawUnitsSql} AS units,
+                    ${bandSql("low")} AS band_low,
+                    ${bandSql("high")} AS band_high,
+                    COALESCE(games.price_in_cents, 0)::double precision
+                        * ${realizedShareSql}
+                        * (1 - ${refundRateSql}) AS revenue_per_unit
+            ) est
         )`;
 
 	return {
@@ -329,5 +343,7 @@ export const buildEstimationSql = (
 		unitsLowSql: `game_estimates.estimated_units_low`,
 		unitsHighSql: `game_estimates.estimated_units_high`,
 		revenueSql: `game_estimates.estimated_revenue_in_cents`,
+		revenueLowSql: `game_estimates.estimated_revenue_low_in_cents`,
+		revenueHighSql: `game_estimates.estimated_revenue_high_in_cents`,
 	};
 };

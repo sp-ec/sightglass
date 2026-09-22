@@ -287,7 +287,9 @@ const perGameColumnsSql = (est: estimationSql): string => `
                 ${est.unitsSql} AS estimated_units,
                 ${est.unitsLowSql} AS estimated_units_low,
                 ${est.unitsHighSql} AS estimated_units_high,
-                ${est.revenueSql} AS estimated_revenue_in_cents`;
+                ${est.revenueSql} AS estimated_revenue_in_cents,
+                ${est.revenueLowSql} AS estimated_revenue_low_in_cents,
+                ${est.revenueHighSql} AS estimated_revenue_high_in_cents`;
 
 // The columns carried forward when the numeric templates re-select from their
 // first CTE. Mirrors perGameColumnsSql by alias.
@@ -300,7 +302,9 @@ const carriedColumnsSql = `
                     estimated_units,
                     estimated_units_low,
                     estimated_units_high,
-                    estimated_revenue_in_cents`;
+                    estimated_revenue_in_cents,
+                    estimated_revenue_low_in_cents,
+                    estimated_revenue_high_in_cents`;
 
 const AGGREGATED_COLUMNS = [
 	"value",
@@ -312,6 +316,8 @@ const AGGREGATED_COLUMNS = [
 	"estimated_units_low",
 	"estimated_units_high",
 	"estimated_revenue_in_cents",
+	"estimated_revenue_low_in_cents",
+	"estimated_revenue_high_in_cents",
 ] as const;
 
 // aggregate_value keeps its historical name; every other column is prefixed

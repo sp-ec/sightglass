@@ -203,6 +203,8 @@ export const fetchGameById = async (appId: string) => {
 			units_low: estimate.unitsLow,
 			units_high: estimate.unitsHigh,
 			revenue_in_cents: estimate.revenueInCents,
+			revenue_low_in_cents: estimate.revenueLowInCents,
+			revenue_high_in_cents: estimate.revenueHighInCents,
 		},
 	};
 };

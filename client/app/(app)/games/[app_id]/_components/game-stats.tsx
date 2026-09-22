@@ -99,9 +99,15 @@ export function GameStats({ reviews, estimate, priceInCents }: Props) {
 				label="Est. Gross Revenue"
 				value={estimate ? formatCents(estimate.revenue_in_cents) : "—"}
 				tooltip="Estimated units multiplied by price, adjusted for discounts over time and refunds."
-				// A free game really does earn nothing from unit sales, but a bare
-				// $0 beside millions of units reads like a failure rather than a fact
-				sub={isFree ? "Free-to-play, so no unit revenue" : null}
+				sub={
+					// A free game really does earn nothing from unit sales, but a bare
+					// $0 beside millions of units reads like a failure rather than a fact
+					isFree
+						? "Free-to-play, so no unit revenue"
+						: estimate
+							? `${formatCents(estimate.revenue_low_in_cents)} – ${formatCents(estimate.revenue_high_in_cents)}`
+							: null
+				}
 			/>
 		</div>
 	);

@@ -125,6 +125,8 @@ export type gameEstimate = {
 	unitsLow: number;
 	unitsHigh: number;
 	revenueInCents: number;
+	revenueLowInCents: number;
+	revenueHighInCents: number;
 };
 
 // The formula as SQL, for aggregating estimates across the library.
@@ -138,6 +140,8 @@ export type estimationSql = {
 	unitsLowSql: string;
 	unitsHighSql: string;
 	revenueSql: string;
+	revenueLowSql: string;
+	revenueHighSql: string;
 };
 
 export type tagMultiplierDefault = { name: string; mult: number };

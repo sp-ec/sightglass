@@ -125,6 +125,8 @@ export type chartAggregationPoint = {
 	aggregate_estimated_units_low: string | null;
 	aggregate_estimated_units_high: string | null;
 	aggregate_estimated_revenue_in_cents: string | null;
+	aggregate_estimated_revenue_low_in_cents: string | null;
+	aggregate_estimated_revenue_high_in_cents: string | null;
 };
 
 export type chartAggregationResponse = {
