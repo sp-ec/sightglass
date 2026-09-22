@@ -21,6 +21,7 @@ import {
 	appSettingsView,
 	audienceSettings,
 	DEFAULT_TAG_MULTIPLIERS,
+	estimationSettings,
 	estimationSettingsInput,
 	realizedPriceSettings,
 	reviewMultiplierSettings,
@@ -681,6 +682,13 @@ export const getSteamApiKey = async (): Promise<string | null> => {
 export const isRegistrationOpen = async (): Promise<boolean> => {
 	const snapshot = await loadSnapshot();
 	return snapshot.access.registrationEnabled;
+};
+
+// Consumed by the games module to build estimate SQL. Served from the same
+// cached snapshot, so a chart request costs no extra query on a cache hit.
+export const getEstimationSettings = async (): Promise<estimationSettings> => {
+	const snapshot = await loadSnapshot();
+	return snapshot.estimation;
 };
 
 // The default tag multipliers reference tags by name, so they can only be

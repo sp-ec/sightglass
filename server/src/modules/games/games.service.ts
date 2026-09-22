@@ -17,6 +17,8 @@ import {
 	CHART_BUCKET_MIN,
 	CHART_BUCKET_MAX,
 } from "./games.types";
+import { getEstimationSettings } from "@/modules/appSettings/appSettings.service";
+import { buildEstimationSql } from "@/modules/appSettings/estimation";
 
 function formatAssetUrl(url: string, filename: string): string {
 	let formattedUrl =
@@ -231,6 +233,8 @@ export const getChartAggregation = async (
 		"publisher",
 		"category",
 		"has_demo",
+		"estimated_units",
+		"estimated_revenue",
 	];
 
 	if (!allowedModes.includes(mode as chartAggregationMode)) {
@@ -242,12 +246,17 @@ export const getChartAggregation = async (
 		? Math.min(CHART_BUCKET_MAX, Math.max(CHART_BUCKET_MIN, parsedBucketSize))
 		: null;
 
+	// Estimates are computed inside the chart query from the current settings,
+	// so an admin's change is reflected on the next request
+	const estimationSettings = await getEstimationSettings();
+
 	let chartData = await getGameChartAggregation(
 		mode as chartAggregationMode,
 		normalizedBucketSize,
 		aggregate,
 		tagsCounted,
 		parseChartFilters(rawFilters),
+		buildEstimationSql(estimationSettings),
 	);
 
 	if (mode === "release_date") {

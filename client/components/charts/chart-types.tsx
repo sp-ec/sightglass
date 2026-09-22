@@ -1,5 +1,6 @@
 import { BarChart3, ScatterChart, ChartPie, Hexagon } from "lucide-react";
 import { StreamgraphIcon } from "../icons/streamgraph-icon";
+import { formatCents } from "@/lib/utils";
 
 export const GROUP_BY_OPTIONS = [
   { label: "Review Count", value: "review_count" },
@@ -12,6 +13,8 @@ export const GROUP_BY_OPTIONS = [
   { label: "Publisher", value: "publisher" },
   { label: "Category", value: "category" },
   { label: "Has Demo", value: "has_demo" },
+  { label: "Est. Units Sold", value: "estimated_units" },
+  { label: "Est. Gross Revenue", value: "estimated_revenue" },
 ] as const;
 
 export const CHART_TYPES = [
@@ -31,6 +34,11 @@ export const AXIS_OPTIONS = [
   { label: "Positive %", value: "aggregate_percent_positive" },
   { label: "Review Count", value: "aggregate_review_count" },
   { label: "Price", value: "aggregate_price_in_cents" },
+  { label: "Est. Units Sold", value: "aggregate_estimated_units" },
+  {
+    label: "Est. Gross Revenue",
+    value: "aggregate_estimated_revenue_in_cents",
+  },
 ] as const;
 
 export const NUMERIC_AXIS_OPTIONS = AXIS_OPTIONS.filter(
@@ -74,6 +82,20 @@ export const BUCKET_CONFIGS: Record<GroupByValue, BucketConfig> = {
   publisher: { min: 1, max: 1, step: 1, locked: true },
   category: { min: 1, max: 1, step: 1, locked: true },
   has_demo: { min: 1, max: 1, step: 1, locked: true },
+  // Selecting a group-by resets the bucket size to min, and estimates run into
+  // the millions, so these start coarse rather than at 1
+  estimated_units: {
+    min: 1_000,
+    max: 100_000_000,
+    step: 1_000,
+    unit: "units",
+  },
+  estimated_revenue: {
+    min: 100_000,
+    max: 1_000_000_000,
+    step: 100_000,
+    displayValue: (value) => formatCents(value),
+  },
 };
 
 export type AxisOption = {

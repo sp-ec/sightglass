@@ -112,6 +112,34 @@ export type appSettingsOutcome =
 	| { status: "ok"; appSettings: appSettingsView }
 	| { status: "invalid"; message: string };
 
+export type gameEstimateInput = {
+	reviewCount: number;
+	percentPositive: number;
+	priceInCents: number;
+	releaseDate: Date | string | null;
+	tagIds: number[];
+};
+
+export type gameEstimate = {
+	units: number;
+	unitsLow: number;
+	unitsHigh: number;
+	revenueInCents: number;
+};
+
+// The formula as SQL, for aggregating estimates across the library.
+// cteSql defines a game_estimates CTE holding one row per game, so the formula
+// is evaluated exactly once per game no matter how many times a query's joins
+// duplicate that game's row. The column fragments just reference it.
+export type estimationSql = {
+	cteSql: string;
+	joinSql: string;
+	unitsSql: string;
+	unitsLowSql: string;
+	unitsHighSql: string;
+	revenueSql: string;
+};
+
 export type tagMultiplierDefault = { name: string; mult: number };
 
 export const TAG_MULTIPLIER_SEED_KEY = "tag_multipliers";

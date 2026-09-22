@@ -16,6 +16,7 @@ import {
 	CHART_BUCKET_MIN,
 	CHART_BUCKET_MAX,
 } from "./games.types";
+import { estimationSql } from "@/modules/appSettings/appSettings.types";
 
 export const findGameByTitle = async (query: string) => {
 	try {
@@ -176,7 +177,65 @@ const buildChartFilterSql = (filters?: chartFilters): chartFilterSql => {
 	};
 };
 
-const aggregationFragments = (tagsCounted?: number | null) =>
+// The per-game columns every chart query carries into its CTE. Extracted so
+// the four query templates below cannot drift apart from one another.
+const perGameColumnsSql = (est: estimationSql): string => `
+                reviews.review_score AS review_score,
+                reviews.percent_positive AS percent_positive,
+                reviews.review_count AS review_count,
+                games.price_in_cents AS price_in_cents,
+                ${est.unitsSql} AS estimated_units,
+                ${est.unitsLowSql} AS estimated_units_low,
+                ${est.unitsHighSql} AS estimated_units_high,
+                ${est.revenueSql} AS estimated_revenue_in_cents`;
+
+// The columns carried forward when the numeric templates re-select from their
+// first CTE. Mirrors perGameColumnsSql by alias.
+const carriedColumnsSql = `
+                    value,
+                    review_score,
+                    percent_positive,
+                    review_count,
+                    price_in_cents,
+                    estimated_units,
+                    estimated_units_low,
+                    estimated_units_high,
+                    estimated_revenue_in_cents`;
+
+const AGGREGATED_COLUMNS = [
+	"value",
+	"review_score",
+	"percent_positive",
+	"review_count",
+	"price_in_cents",
+	"estimated_units",
+	"estimated_units_low",
+	"estimated_units_high",
+	"estimated_revenue_in_cents",
+] as const;
+
+// aggregate_value keeps its historical name; every other column is prefixed
+const aggregateAlias = (column: string): string =>
+	column === "value" ? "aggregate_value" : `aggregate_${column}`;
+
+const aggregateColumnsSql = (aggregate: "average" | "median"): string =>
+	AGGREGATED_COLUMNS.map((column) =>
+		aggregate === "median"
+			? `ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${column}))::numeric, 2) AS ${aggregateAlias(column)}`
+			: // Cast inside ROUND: the estimate columns are double precision,
+				// which has no two-argument ROUND
+				`ROUND(AVG(${column})::numeric, 2) AS ${aggregateAlias(column)}`,
+	).join(",\n                ");
+
+// Prefixes the estimate's tag-multiplier CTE, which is absent when no tag
+// multipliers are configured
+const withClause = (est: estimationSql): string =>
+	est.cteSql ? `WITH ${est.cteSql},` : "WITH";
+
+const aggregationFragments = (
+	tagsCounted: number | null | undefined,
+	est: estimationSql,
+) =>
 	({
 		review_count: {
 			bucketSql: ``,
@@ -234,6 +293,14 @@ const aggregationFragments = (tagsCounted?: number | null) =>
 			bucketSql: `CASE WHEN EXISTS (SELECT 1 FROM games demo_games WHERE demo_games.parent_app_id = games.app_id) THEN 'Yes' WHEN games.type = 1 THEN 'Is Demo' ELSE 'No' END`,
 			valueSql: `CASE WHEN EXISTS (SELECT 1 FROM games demo_games WHERE demo_games.parent_app_id = games.app_id) THEN 2 WHEN games.type = 1 THEN 1 ELSE 0 END::numeric`,
 		},
+		estimated_units: {
+			bucketSql: ``,
+			valueSql: `${est.unitsSql}::numeric`,
+		},
+		estimated_revenue: {
+			bucketSql: ``,
+			valueSql: `${est.revenueSql}::numeric`,
+		},
 	}) satisfies Record<
 		chartAggregationMode,
 		{ bucketSql: string; valueSql: string; joinSql?: string }
@@ -247,103 +314,33 @@ const getBucketSize = (bucketSize: number | undefined | null) => {
 	return Math.min(CHART_BUCKET_MAX, Math.max(CHART_BUCKET_MIN, bucketSize));
 };
 
-const aggregateAverage = (
+// Average and median differ only in how the outer SELECT aggregates, so both
+// share one pair of templates.
+const buildAggregationQuery = (
 	fragment: aggregationFragment,
 	isNumericMode: boolean,
 	normalizedBucketSize: number,
 	whereSql: string,
+	est: estimationSql,
+	aggregate: "average" | "median",
 ): string => {
-	return isNumericMode
-		? `WITH numeric_games AS (
-                SELECT
-                    ${fragment.valueSql} AS value,
-                    reviews.review_score AS review_score,
-                    reviews.percent_positive AS percent_positive,
-                    reviews.review_count AS review_count,
-                    games.price_in_cents AS price_in_cents
-                FROM games
-                LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
-                ${fragment.joinSql || ""}
-                ${whereSql}
-            ),
-            aggregated_games AS (
-                SELECT
-                    FLOOR(value / ${normalizedBucketSize}) * ${normalizedBucketSize} AS bucket,
-                    value,
-                    review_score,
-                    percent_positive,
-                    review_count,
-                    price_in_cents
-                FROM numeric_games
-            )
-            SELECT
-                bucket::text AS bucket,
-                COUNT(*)::int AS count,
-                MIN(value)::numeric AS min_value,
-                MAX(value)::numeric AS max_value,
-                ROUND(AVG(value), 2)::numeric AS aggregate_value,
-                ROUND(AVG(review_score), 2)::numeric AS aggregate_review_score,
-                ROUND(AVG(percent_positive), 2)::numeric AS aggregate_percent_positive,
-                ROUND(AVG(review_count), 2)::numeric AS aggregate_review_count,
-                ROUND(AVG(price_in_cents), 2)::numeric AS aggregate_price_in_cents
-            FROM aggregated_games
-            GROUP BY bucket
-            ORDER BY min_value ASC;`
-		: `WITH aggregated_games AS (
-                SELECT
-                    ${fragment.bucketSql} AS bucket,
-                    ${fragment.valueSql} AS value,
-                    reviews.review_score AS review_score,
-                    reviews.percent_positive AS percent_positive,
-                    reviews.review_count AS review_count,
-                    games.price_in_cents AS price_in_cents
-                FROM games
-                LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
-                ${fragment.joinSql || ""}
-                ${whereSql}
-            )
-            SELECT
-                bucket::text AS bucket,
-                COUNT(*)::int AS count,
-                MIN(value)::numeric AS min_value,
-                MAX(value)::numeric AS max_value,
-                ROUND(AVG(value), 2)::numeric AS aggregate_value,
-                ROUND(AVG(review_score), 2)::numeric AS aggregate_review_score,
-                ROUND(AVG(percent_positive), 2)::numeric AS aggregate_percent_positive,
-                ROUND(AVG(review_count), 2)::numeric AS aggregate_review_count,
-                ROUND(AVG(price_in_cents), 2)::numeric AS aggregate_price_in_cents
-            FROM aggregated_games
-            GROUP BY bucket
-            ORDER BY min_value ASC;`;
-};
+	const selectColumns = aggregateColumnsSql(aggregate);
 
-const aggregateMedian = (
-	fragment: aggregationFragment,
-	isNumericMode: boolean,
-	normalizedBucketSize: number,
-	whereSql: string,
-): string => {
 	return isNumericMode
-		? `WITH numeric_games AS (
+		? `${withClause(est)} numeric_games AS (
                 SELECT
                     ${fragment.valueSql} AS value,
-                    reviews.review_score AS review_score,
-                    reviews.percent_positive AS percent_positive,
-                    reviews.review_count AS review_count,
-                    games.price_in_cents AS price_in_cents
+                    ${perGameColumnsSql(est)}
                 FROM games
                 LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
+                ${est.joinSql}
                 ${fragment.joinSql || ""}
                 ${whereSql}
             ),
             aggregated_games AS (
                 SELECT
                     FLOOR(value / ${normalizedBucketSize}) * ${normalizedBucketSize} AS bucket,
-                    value,
-                    review_score,
-                    percent_positive,
-                    review_count,
-                    price_in_cents
+                    ${carriedColumnsSql}
                 FROM numeric_games
             )
             SELECT
@@ -351,24 +348,18 @@ const aggregateMedian = (
                 COUNT(*)::int AS count,
                 MIN(value)::numeric AS min_value,
                 MAX(value)::numeric AS max_value,
-                ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY value))::numeric, 2) AS aggregate_value,
-                ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY review_score))::numeric, 2) AS aggregate_review_score,
-                ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY percent_positive))::numeric, 2) AS aggregate_percent_positive,
-                ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY review_count))::numeric, 2) AS aggregate_review_count,
-                ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price_in_cents))::numeric, 2) AS aggregate_price_in_cents
+                ${selectColumns}
             FROM aggregated_games
             GROUP BY bucket
             ORDER BY min_value ASC;`
-		: `WITH aggregated_games AS (
+		: `${withClause(est)} aggregated_games AS (
                 SELECT
                     ${fragment.bucketSql} AS bucket,
                     ${fragment.valueSql} AS value,
-                    reviews.review_score AS review_score,
-                    reviews.percent_positive AS percent_positive,
-                    reviews.review_count AS review_count,
-                    games.price_in_cents AS price_in_cents
+                    ${perGameColumnsSql(est)}
                 FROM games
                 LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
+                ${est.joinSql}
                 ${fragment.joinSql || ""}
                 ${whereSql}
             )
@@ -377,11 +368,7 @@ const aggregateMedian = (
                 COUNT(*)::int AS count,
                 MIN(value)::numeric AS min_value,
                 MAX(value)::numeric AS max_value,
-                ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY value))::numeric, 2) AS aggregate_value,
-                ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY review_score))::numeric, 2) AS aggregate_review_score,
-                ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY percent_positive))::numeric, 2) AS aggregate_percent_positive,
-                ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY review_count))::numeric, 2) AS aggregate_review_count,
-                ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price_in_cents))::numeric, 2) AS aggregate_price_in_cents
+                ${selectColumns}
             FROM aggregated_games
             GROUP BY bucket
             ORDER BY min_value ASC;`;
@@ -389,18 +376,21 @@ const aggregateMedian = (
 
 export const getGameChartAggregation = async (
 	mode: chartAggregationMode,
-	bucketSize?: number | null,
-	aggregate: "average" | "median" = "average",
-	tagsCounted?: number | null,
-	filters?: chartFilters,
+	bucketSize: number | null | undefined,
+	aggregate: "average" | "median",
+	tagsCounted: number | null | undefined,
+	filters: chartFilters | undefined,
+	est: estimationSql,
 ) => {
-	const fragment = aggregationFragments(tagsCounted)[mode];
+	const fragment = aggregationFragments(tagsCounted, est)[mode];
 	let normalizedBucketSize = getBucketSize(bucketSize);
 	const numericBucketModes = [
 		"review_count",
 		"review_score",
 		"release_date",
 		"price",
+		"estimated_units",
+		"estimated_revenue",
 	] as const;
 	const isNumericMode = numericBucketModes.includes(
 		mode as (typeof numericBucketModes)[number],
@@ -414,14 +404,14 @@ export const getGameChartAggregation = async (
 	const { whereSql, params } = buildChartFilterSql(filters);
 
 	const result = await pool.query(
-		aggregate === "median"
-			? aggregateMedian(fragment, isNumericMode, normalizedBucketSize, whereSql)
-			: aggregateAverage(
-					fragment,
-					isNumericMode,
-					normalizedBucketSize,
-					whereSql,
-				),
+		buildAggregationQuery(
+			fragment,
+			isNumericMode,
+			normalizedBucketSize,
+			whereSql,
+			est,
+			aggregate,
+		),
 		params,
 	);
 

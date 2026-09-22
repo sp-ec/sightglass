@@ -62,7 +62,9 @@ export type chartAggregationMode =
 	| "developer"
 	| "publisher"
 	| "category"
-	| "has_demo";
+	| "has_demo"
+	| "estimated_units"
+	| "estimated_revenue";
 
 export const CHART_BUCKET_MIN = 1;
 export const CHART_BUCKET_MAX = 1000000;
@@ -78,6 +80,11 @@ export type chartAggregationPoint = {
 	aggregate_percent_positive: number | null;
 	aggregate_review_count: number | null;
 	aggregate_price_in_cents: number | null;
+	// Postgres numeric, so these arrive as strings
+	aggregate_estimated_units: string | null;
+	aggregate_estimated_units_low: string | null;
+	aggregate_estimated_units_high: string | null;
+	aggregate_estimated_revenue_in_cents: string | null;
 };
 
 export type chartAggregationResponse = {

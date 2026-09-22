@@ -17,6 +17,9 @@ interface RadarChartProps {
 import { TOOLTIP, ChartTooltip } from "./chart-tooltip";
 import { Skeleton } from "../ui/skeleton";
 
+// A radar tooltip covers every bucket at once, so cap it before it runs off screen
+const RADAR_TOOLTIP_LIMIT = 8;
+
 export default function RadarChart({
 	data,
 	xAxisKey,
@@ -63,6 +66,26 @@ export default function RadarChart({
 		console.log("RadarChart series2 data:", seriesData2);
 
 		return {
+			// ECharts reports a radar hover as the whole series rather than the
+			// single vertex under the cursor, so the tooltip lists each bucket
+			tooltip: {
+				...TOOLTIP,
+				trigger: "item",
+				formatter: (params: any) => {
+					const seriesName = params?.name ?? "";
+					const rows = data.points
+						.slice(0, RADAR_TOOLTIP_LIMIT)
+						.map((point) => ChartTooltip({ point }))
+						.join(`<div style="height:6px"></div>`);
+					const hidden = data.points.length - RADAR_TOOLTIP_LIMIT;
+
+					return `
+						<div style="font-weight:bold;margin-bottom:6px;">${seriesName}</div>
+						${rows}
+						${hidden > 0 ? `<div style="margin-top:6px;opacity:0.7;">+${hidden} more</div>` : ""}
+					`;
+				},
+			},
 			radar: {
 				indicator: indicatorData,
 				radius: 400,

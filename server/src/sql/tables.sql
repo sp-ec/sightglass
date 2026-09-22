@@ -50,6 +50,10 @@ CREATE TABLE IF NOT EXISTS game_tags (
     PRIMARY KEY (game_id, tag_id)
 );
 
+-- The sales estimator and the chart tag filter both look tags up by id, which
+-- the (game_id, tag_id) primary key cannot serve
+CREATE INDEX IF NOT EXISTS game_tags_tag_id_idx ON game_tags (tag_id);
+
 create table if not exists categories (
    id         integer unique not null primary key,
    type       integer not null,
