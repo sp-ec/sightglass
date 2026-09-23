@@ -145,6 +145,7 @@ export default function SyncPage() {
 									href={`https://store.steampowered.com/${syncInfo?.newestGame?.store_url_path}`}
 									rel="noopener noreferrer"
 									target="_blank"
+									className="block"
 								>
 									<Image
 										src={`${formatAssetUrl(syncInfo?.newestGame?.asset_url_format || "", syncInfo?.newestGame?.main_capsule || "")}`}

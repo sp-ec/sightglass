@@ -43,16 +43,16 @@ const data = {
 			url: "/browse",
 			icon: Gamepad2,
 		},
-		{
-			name: "Developers & Publishers",
-			url: "/browse",
-			icon: BriefcaseBusiness,
-		},
-		{
-			name: "Tags & Genres",
-			url: "/browse",
-			icon: Tag,
-		},
+		// {
+		// 	name: "Developers & Publishers",
+		// 	url: "/browse",
+		// 	icon: BriefcaseBusiness,
+		// },
+		// {
+		// 	name: "Tags & Genres",
+		// 	url: "/browse",
+		// 	icon: Tag,
+		// },
 	],
 	administration: [
 		{

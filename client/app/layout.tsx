@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { AuthProvider } from "@/components/auth/auth-provider";
 
 export const metadata: Metadata = {
-	title: "Steamanalyzer",
+	title: "Sightglass",
 	description: "Analyze the entire Steam Market in one place.",
 };
 

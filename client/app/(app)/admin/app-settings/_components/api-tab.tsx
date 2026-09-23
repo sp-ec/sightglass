@@ -94,14 +94,21 @@ export function ApiTab({ current, onSaved }: Props) {
 					value={value?.steamApiKey ?? ""}
 					disabled={value === null}
 					aria-invalid={Boolean(errors.steamApiKey)}
-					onChange={(e) =>
-						update(() => ({ steamApiKey: e.target.value }))
-					}
+					onChange={(e) => update(() => ({ steamApiKey: e.target.value }))}
 				/>
 				<p className="text-sm text-muted-foreground">
 					{current?.hasKey
 						? "A key is stored. Leave this blank to keep it, or enter a new key to replace it."
-						: "Sync cannot run until a key is saved."}
+						: "Sync cannot run until a key is saved."}{" "}
+					Information on how to obtain a Steam API key can be found in the{" "}
+					<a
+						href="https://steamcommunity.com/dev"
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						Steam API documentation
+					</a>
+					.
 				</p>
 				{errors.steamApiKey && (
 					<p className="text-xs text-destructive">{errors.steamApiKey}</p>

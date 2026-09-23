@@ -24,6 +24,8 @@
   --border: oklch(0.9220 0 0);
   --input: oklch(0.9220 0 0);
   --ring: oklch(0.7080 0 0);
+  --link: oklch(0.5200 0.1700 250);
+  --link-hover: oklch(0.4300 0.1800 254);
   --chart-1: oklch(0.8100 0.1000 252);
   --chart-2: oklch(0.6200 0.1900 260);
   --chart-3: oklch(0.5500 0.2200 263);
@@ -79,6 +81,8 @@
   --border: oklch(0.2750 0 0);
   --input: oklch(0.3250 0 0);
   --ring: oklch(0.5560 0 0);
+  --link: oklch(0.7460 0.1600 232.6610);
+  --link-hover: oklch(0.8400 0.1100 230);
   --chart-1: oklch(0.8100 0.1000 252);
   --chart-2: oklch(0.6200 0.1900 260);
   --chart-3: oklch(0.5500 0.2200 263);
@@ -132,6 +136,8 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-link: var(--link);
+  --color-link-hover: var(--link-hover);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -171,5 +177,19 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* text links: opt-in via the .link class, plus bare anchors that carry no classes of their own */
+  a:not([class]),
+  .link {
+    @apply text-link underline decoration-link/40 underline-offset-4 transition-colors;
+  }
+  a:not([class]):hover,
+  .link:hover {
+    @apply text-link-hover decoration-link-hover;
+  }
+  a:not([class]):focus-visible,
+  .link:focus-visible {
+    @apply rounded-sm outline-2 outline-offset-2 outline-ring;
   }
 }

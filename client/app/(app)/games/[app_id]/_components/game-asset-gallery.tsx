@@ -74,7 +74,12 @@ export function GameAssetGallery({ assets }: { assets: GameAssets }) {
 								)}
 							>
 								{src ? (
-									<a href={src} target="_blank" rel="noopener noreferrer">
+									<a
+										href={src}
+										target="_blank"
+										rel="noopener noreferrer"
+										className="block"
+									>
 										{tile}
 									</a>
 								) : (

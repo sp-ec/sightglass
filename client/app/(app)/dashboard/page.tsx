@@ -56,7 +56,7 @@ export default function DashboardPage() {
 
 			<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 				{tiles.map((tile) => (
-					<Link key={tile.href} href={tile.href}>
+					<Link key={tile.href} href={tile.href} className="block">
 						<Card className="h-full transition-colors hover:border-primary">
 							<CardHeader>
 								<tile.icon className="size-5 text-muted-foreground" />
