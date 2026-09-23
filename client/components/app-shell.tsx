@@ -35,6 +35,7 @@ const routeTitles: Record<string, string> = {
 	"/sync": "Sync Steam Data",
 	"/chart": "Chart Creator",
 	"/admin/app-settings": "App Settings",
+	"/admin/users": "Users",
 };
 
 // Dynamic routes cannot be matched exactly, so they fall back to a prefix

@@ -18,6 +18,7 @@ import {
 	Tag,
 	Telescope,
 	Settings2,
+	Users,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -59,6 +60,11 @@ const data = {
 			name: "Sync Steam Data",
 			url: "/admin/sync",
 			icon: CloudSync,
+		},
+		{
+			name: "Users",
+			url: "/admin/users",
+			icon: Users,
 		},
 		{
 			name: "App Settings",
