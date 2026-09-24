@@ -1,6 +1,8 @@
+
 <div align="center">
 
-  # Sightglass
+  <img width="2560" height="1440" alt="SIGHTGLASS LOGO" src="https://github.com/user-attachments/assets/c5a6326b-3cc6-4340-9c7c-1e40c19f0eb9" />
+  
   ### A self-hosted platform for analyzing Steam games.
 
 </div>
