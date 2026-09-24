@@ -1,0 +1,85 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 0.1.1)"
+        required: true
+        type: string
+
+permissions:
+  contents: write   # needed to create the GitHub release
+
+env:
+  IMAGE: yourdockerhubuser/yourapp
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must look like 1.2.3 (got '$VERSION')"
+            exit 1
+          fi
+          if git ls-remote --tags origin "refs/tags/v$VERSION" | grep -q .; then
+            echo "::error::Tag v$VERSION already exists"
+            exit 1
+          fi
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Tag existing image as version + latest
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          SOURCE="$IMAGE:${GITHUB_SHA::7}"
+          docker buildx imagetools create \
+            -t "$IMAGE:$VERSION" \
+            -t "$IMAGE:latest" \
+            "$SOURCE"
+
+      - name: Create draft GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          cat > notes.md <<'EOF'
+          ## What's new
+          - 
+
+          ## Fixes
+          - 
+
+          ## Breaking changes
+          - None
+
+          ## Docker image
+```bash
+          docker pull __IMAGE__:__VERSION__
+```
+          Also available as `__IMAGE__:latest`. Built from commit `__SHA__`.
+          EOF
+
+          sed -i \
+            -e "s|__IMAGE__|$IMAGE|g" \
+            -e "s|__VERSION__|$VERSION|g" \
+            -e "s|__SHA__|${GITHUB_SHA::7}|g" \
+            notes.md
+
+          gh release create "v$VERSION" \
+            --target "$GITHUB_SHA" \
+            --title "v$VERSION" \
+            --notes-file notes.md \
+            --draft
