@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+	// Self-contained server bundle for the Docker image
+	output: "standalone",
 	productionBrowserSourceMaps: false,
 	// Forwards the API to Express so the browser sees one origin. This is what
 	// makes the session cookie first-party and readable by proxy.ts.

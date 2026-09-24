@@ -21,6 +21,7 @@ import {
 	Users,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useAuth } from "@/components/auth/auth-provider";
 import { NavSection } from "./nav-section";
 import { NavUser } from "./nav-user";
@@ -84,9 +85,12 @@ export function AppSidebar() {
 					<SidebarMenuItem>
 						<SidebarMenuButton size="lg" asChild>
 							<Link href="/">
-								<div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-									<Telescope className="size-4" />
-								</div>
+								<Image
+									src="/logo.png"
+									alt="Sightglass Logo"
+									width={32}
+									height={32}
+								/>
 								<div className="grid flex-1 text-left text-sm leading-tight">
 									<span className="truncate font-medium">Sightglass</span>
 									<span className="truncate text-xs text-muted-foreground">
