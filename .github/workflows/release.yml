@@ -44,7 +44,7 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: |
-          SOURCE="$IMAGE:${GITHUB_SHA::7}"
+          SOURCE="$IMAGE:rolling"
           docker buildx imagetools create \
             -t "$IMAGE:$VERSION" \
             -t "$IMAGE:latest" \
@@ -58,7 +58,6 @@ jobs:
           sed \
             -e "s|__IMAGE__|$IMAGE|g" \
             -e "s|__VERSION__|$VERSION|g" \
-            -e "s|__SHA__|${GITHUB_SHA::7}|g" \
             .github/release-template.md > notes.md
 
           gh release create "v$VERSION" \
