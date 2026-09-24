@@ -11,7 +11,7 @@ Sightglass is a self-hosted platform for analyzing over 150,000 Steam games & de
 
 ## Features
 - **🌐 Steam Database Scraper**
-    - Collects extensive data on every Steam game in under 15 minutes.
+    - Collects extensive data on every Steam game in under 20 minutes.
 - **📊 Sophisticated Charting**
     - Create Bar, Scatterplot, Pie & Radar charts.
     - Bucket & filter games by tag, price, release date, etc.
