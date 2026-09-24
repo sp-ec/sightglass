@@ -55,28 +55,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
         run: |
-          cat > notes.md <<'EOF'
-          ## What's new
-          - 
-
-          ## Fixes
-          - 
-
-          ## Breaking changes
-          - None
-
-          ## Docker image
-```bash
-          docker pull __IMAGE__:__VERSION__
-```
-          Also available as `__IMAGE__:latest`. Built from commit `__SHA__`.
-          EOF
-
-          sed -i \
+          sed \
             -e "s|__IMAGE__|$IMAGE|g" \
             -e "s|__VERSION__|$VERSION|g" \
             -e "s|__SHA__|${GITHUB_SHA::7}|g" \
-            notes.md
+            .github/release-template.md > notes.md
 
           gh release create "v$VERSION" \
             --target "$GITHUB_SHA" \
