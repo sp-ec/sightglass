@@ -49,3 +49,7 @@ Sightglass is a self-hosted platform for analyzing over 150,000 Steam games & de
     </td>
   </tr>
 </table>
+
+## Disclaimer
+
+Sightglass is not affiliated with Valve or Steam. It is an external tool, using Steam's public API to analyze data.
