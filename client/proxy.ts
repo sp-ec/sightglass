@@ -9,8 +9,24 @@ const publicPaths = ["/login", "/signup", "/setup"];
 // can make this page render, and then every request it makes returns 403.
 const adminPaths = ["/sync", "/admin"];
 
+// Forwards the API to Express so the browser sees one origin, which keeps the
+// session cookie first-party. Done here rather than as a next.config rewrite
+// because those are frozen at build time; this reads SERVER_API_URL per request.
+function rewriteToApi(request: NextRequest) {
+	const apiOrigin = process.env.SERVER_API_URL ?? "http://localhost:3001";
+	const { pathname, search } = request.nextUrl;
+	return NextResponse.rewrite(new URL(`${pathname}${search}`, apiOrigin));
+}
+
 export function proxy(request: NextRequest) {
 	const { pathname } = request.nextUrl;
+
+	// Must come before the session gate, or an anonymous POST /api/auth/login
+	// would be redirected to /login as HTML and signing in would be impossible
+	if (pathname === "/api" || pathname.startsWith("/api/")) {
+		return rewriteToApi(request);
+	}
+
 	const hasSession = request.cookies.has("sa_session");
 	const isPublic = publicPaths.some(
 		(path) => pathname === path || pathname.startsWith(`${path}/`),
@@ -37,11 +53,8 @@ export function proxy(request: NextRequest) {
 	return NextResponse.next();
 }
 
-// Excluding `api` is load-bearing: the proxy runs before the /api rewrite, so
-// without it an anonymous POST /api/auth/login would be redirected to /login
-// as HTML and signing in would be impossible.
 export const config = {
 	matcher: [
-		"/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|svg|ico)$).*)",
+		"/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|svg|ico)$).*)",
 	],
 };

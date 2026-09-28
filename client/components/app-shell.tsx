@@ -32,8 +32,8 @@ const routeTitles: Record<string, string> = {
 	"/dashboard": "Dashboard",
 	"/browse": "Games List",
 	"/settings": "Settings",
-	"/sync": "Sync Steam Data",
 	"/chart": "Chart Creator",
+	"/admin/sync": "Sync Steam Data",
 	"/admin/app-settings": "App Settings",
 	"/admin/users": "Users",
 };

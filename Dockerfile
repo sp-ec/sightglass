@@ -30,22 +30,21 @@ RUN npm ci
 
 FROM node:${NODE_VERSION} AS client-build
 WORKDIR /app
-# Both are baked in at build time: NEXT_PUBLIC_* is inlined into the bundle,
-# and the /api rewrite destination is serialized into the standalone server
+# NEXT_PUBLIC_* is inlined into the bundle, so it is fixed at build time
 ARG NEXT_PUBLIC_API_URL=/api
-ARG SERVER_API_URL=http://server:3001
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
-	SERVER_API_URL=${SERVER_API_URL} \
 	NEXT_TELEMETRY_DISABLED=1
 COPY --from=client-deps /app/node_modules ./node_modules
 COPY client/ ./
 RUN npm run build
 
 FROM node:${NODE_VERSION} AS client
+# SERVER_API_URL is read by proxy.ts per request; override it per environment
 ENV NODE_ENV=production \
 	NEXT_TELEMETRY_DISABLED=1 \
 	HOSTNAME=0.0.0.0 \
-	PORT=3000
+	PORT=3000 \
+	SERVER_API_URL=http://server:3001
 WORKDIR /app
 COPY --from=client-build --chown=node:node /app/.next/standalone ./
 COPY --from=client-build --chown=node:node /app/.next/static ./.next/static
