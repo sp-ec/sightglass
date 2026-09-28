@@ -40,11 +40,21 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Tag existing image as version + latest
+      - name: Tag existing client image as version + latest
         env:
           VERSION: ${{ inputs.version }}
         run: |
-          SOURCE="$IMAGE:rolling"
+          SOURCE="$IMAGE-client:rolling"
+          docker buildx imagetools create \
+            -t "$IMAGE:$VERSION" \
+            -t "$IMAGE:latest" \
+            "$SOURCE"
+            
+      - name: Tag existing server image as version + latest
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          SOURCE="$IMAGE-server:rolling"
           docker buildx imagetools create \
             -t "$IMAGE:$VERSION" \
             -t "$IMAGE:latest" \
