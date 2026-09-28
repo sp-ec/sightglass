@@ -22,7 +22,14 @@ jobs:
 
       - uses: docker/build-push-action@v6
         with:
-          context: .
+          context: --target client .
           push: true
           tags: |
-            ${{ env.IMAGE }}:rolling
+            ${{ env.IMAGE }}-client:rolling
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: --target server . 
+          push: true
+          tags: |
+            ${{ env.IMAGE }}-server:rolling
