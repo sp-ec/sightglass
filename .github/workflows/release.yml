@@ -56,8 +56,8 @@ jobs:
         run: |
           SOURCE="$IMAGE-server:rolling"
           docker buildx imagetools create \
-            -t "$IMAGE-client:$VERSION" \
-            -t "$IMAGE-client:latest" \
+            -t "$IMAGE-server:$VERSION" \
+            -t "$IMAGE-server:latest" \
             "$SOURCE"
 
       - name: Create draft GitHub release
