@@ -31,7 +31,7 @@ Sightglass is a self-hosted platform for analyzing over 150,000 Steam games & de
  
 ## Quick Start
 
-Sightglass is quick to deploy—you only need a PostgreSQL server and Docker. Choose one of these options:
+Sightglass is quick to deploy, you only need a PostgreSQL server and Docker. Choose one of these options:
 
 ### Railway (One-Click)
 
