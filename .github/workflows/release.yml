@@ -46,8 +46,8 @@ jobs:
         run: |
           SOURCE="$IMAGE-client:rolling"
           docker buildx imagetools create \
-            -t "$IMAGE:$VERSION" \
-            -t "$IMAGE:latest" \
+            -t "$IMAGE-client:$VERSION" \
+            -t "$IMAGE-client:latest" \
             "$SOURCE"
             
       - name: Tag existing server image as version + latest
@@ -56,8 +56,8 @@ jobs:
         run: |
           SOURCE="$IMAGE-server:rolling"
           docker buildx imagetools create \
-            -t "$IMAGE:$VERSION" \
-            -t "$IMAGE:latest" \
+            -t "$IMAGE-client:$VERSION" \
+            -t "$IMAGE-client:latest" \
             "$SOURCE"
 
       - name: Create draft GitHub release
