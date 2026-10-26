@@ -185,6 +185,9 @@ type aggregationFragment = {
 	bucketSql: string;
 	valueSql: string;
 	joinSql?: string;
+	// Resolves a bucket key to its display name once per group, after grouping,
+	// instead of joining the name table once per game row
+	lookup?: { bucketSql: string; joinSql: string };
 };
 
 // Builds the parameterized WHERE clause shared by every chart aggregation query
@@ -336,6 +339,12 @@ const aggregateColumnsSql = (aggregate: "average" | "median"): string =>
 				`ROUND(AVG(${column})::numeric, 2) AS ${aggregateAlias(column)}`,
 	).join(",\n                ");
 
+// The grouped_games columns the categorical template passes through untouched
+const groupedColumnsSql = ["count", "min_value", "max_value"]
+	.concat(AGGREGATED_COLUMNS.map(aggregateAlias))
+	.map((column) => `grouped_games.${column}`)
+	.join(",\n                ");
+
 const aggregationFragments = (tagsCounted: number | null | undefined) =>
 	({
 		review_count: {
@@ -355,16 +364,20 @@ const aggregationFragments = (tagsCounted: number | null | undefined) =>
 			valueSql: `games.price_in_cents::numeric`,
 		},
 		tag: {
-			bucketSql: `COALESCE(tags.name, 'Unknown')`,
-			valueSql: `COALESCE(tags.id, 0)::numeric`,
+			bucketSql: `top_tags.tag_id`,
+			valueSql: `COALESCE(top_tags.tag_id, 0)::numeric`,
 			joinSql: `LEFT JOIN LATERAL (
-                  SELECT tag_id 
-                  FROM game_tags 
-                  WHERE game_tags.game_id = games.app_id 
-                  ORDER BY weight DESC 
+                  SELECT tag_id
+                  FROM game_tags
+                  WHERE game_tags.game_id = games.app_id
+                  ORDER BY weight DESC
                   LIMIT ${tagsCounted ?? 10}
-              ) top_tags ON true 
-              LEFT JOIN tags ON top_tags.tag_id = tags.id`,
+              ) top_tags ON true`,
+			// Untagged games read 'Unknown'; tag ids missing from tags keep their own bucket
+			lookup: {
+				bucketSql: `COALESCE(tags.name, 'Unknown tag ' || grouped_games.bucket, 'Unknown')`,
+				joinSql: `LEFT JOIN tags ON tags.id = grouped_games.bucket`,
+			},
 		},
 		supported_languages: {
 			bucketSql: `COALESCE(languages.name, 'Unknown')`,
@@ -404,7 +417,7 @@ const aggregationFragments = (tagsCounted: number | null | undefined) =>
 		},
 	}) satisfies Record<
 		chartAggregationMode,
-		{ bucketSql: string; valueSql: string; joinSql?: string }
+		aggregationFragment
 	>;
 
 const getBucketSize = (bucketSize: number | undefined | null) => {
@@ -462,16 +475,23 @@ const buildAggregationQuery = (
                 ${ESTIMATES_JOIN_SQL}
                 ${fragment.joinSql || ""}
                 ${whereSql}
+            ),
+            grouped_games AS (
+                SELECT
+                    bucket,
+                    COUNT(*)::int AS count,
+                    MIN(value)::numeric AS min_value,
+                    MAX(value)::numeric AS max_value,
+                    ${selectColumns}
+                FROM aggregated_games
+                GROUP BY bucket
             )
             SELECT
-                bucket::text AS bucket,
-                COUNT(*)::int AS count,
-                MIN(value)::numeric AS min_value,
-                MAX(value)::numeric AS max_value,
-                ${selectColumns}
-            FROM aggregated_games
-            GROUP BY bucket
-            ORDER BY min_value ASC;`;
+                (${fragment.lookup?.bucketSql ?? "grouped_games.bucket"})::text AS bucket,
+                ${groupedColumnsSql}
+            FROM grouped_games
+            ${fragment.lookup?.joinSql ?? ""}
+            ORDER BY grouped_games.min_value ASC;`;
 };
 
 export const getGameChartAggregation = async (
