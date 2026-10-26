@@ -95,41 +95,60 @@ export const findGamesList = async (
 	offset: number,
 ): Promise<gameListItem[]> => {
 	try {
+		// The page is picked before assets and tags are attached, so OFFSET skips
+		// bare rows instead of fully built ones. rank carries the sort out of it.
 		const result = await pool.query(
 			`SELECT
-				games.app_id,
-				games.name,
-				games.short_description,
-				games.type,
-				games.parent_app_id,
+				page.app_id,
+				page.name,
+				page.short_description,
+				page.type,
+				page.parent_app_id,
 				game_assets.asset_url_format,
 				game_assets.main_capsule,
 				game_assets.small_capsule,
-				reviews.review_count,
-				reviews.percent_positive,
-				reviews.review_score,
-				reviews.review_score_label,
+				page.review_count,
+				page.percent_positive,
+				page.review_score,
+				page.review_score_label,
 				COALESCE(top_tags.names, ARRAY[]::text[]) AS tags
-			FROM games
-			LEFT JOIN game_assets ON game_assets.game_id = games.app_id
-			LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
+			FROM (
+				SELECT
+					games.app_id,
+					games.name,
+					games.short_description,
+					games.type,
+					games.parent_app_id,
+					reviews.review_count,
+					reviews.percent_positive,
+					reviews.review_score,
+					reviews.review_score_label,
+					CASE WHEN $1::text IS NULL THEN 0 ELSE similarity(games.name, $1) END AS rank
+				FROM games
+				LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
+				WHERE ${LIST_SEARCH_SQL}
+				ORDER BY
+					rank DESC,
+					reviews.review_count DESC NULLS LAST,
+					games.app_id ASC
+				LIMIT $2 OFFSET $3
+			) page
+			LEFT JOIN game_assets ON game_assets.game_id = page.app_id
 			LEFT JOIN LATERAL (
 				SELECT array_agg(tags.name ORDER BY ranked.weight DESC, ranked.tag_id ASC) AS names
 				FROM (
 					SELECT tag_id, weight
 					FROM game_tags
-					WHERE game_tags.game_id = games.app_id
+					WHERE game_tags.game_id = page.app_id
 					ORDER BY weight DESC, tag_id ASC
 					LIMIT 5
 				) ranked
 				JOIN tags ON tags.id = ranked.tag_id
 			) top_tags ON TRUE
-			WHERE ${LIST_SEARCH_SQL}
 			ORDER BY
-				CASE WHEN $1::text IS NULL THEN 0 ELSE similarity(games.name, $1) END DESC,
-				reviews.review_count DESC NULLS LAST,
-				games.app_id ASC
-			LIMIT $2 OFFSET $3;`,
+				page.rank DESC,
+				page.review_count DESC NULLS LAST,
+				page.app_id ASC;`,
 			[search, limit, offset],
 		);
 

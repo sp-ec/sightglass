@@ -1,5 +1,10 @@
 import pool from "@/sql/db";
-import { bulkUpsert, unixToTimestamp, chunkArray } from "@/sql/dbUtils";
+import {
+	bulkUpsert,
+	bulkUpsertUnnest,
+	unixToTimestamp,
+	chunkArray,
+} from "@/sql/dbUtils";
 
 const CHUNK_SIZE = 500;
 
@@ -339,7 +344,8 @@ export const saveSteamGames = async (storeItems: any[]) => {
 			categoryPairs,
 			"ON CONFLICT DO NOTHING",
 		);
-		await bulkUpsert(
+		// ~22 languages per game at 6 columns overflows the parameter limit
+		await bulkUpsertUnnest(
 			"game_supported_languages",
 			[
 				"game_id",
@@ -349,6 +355,7 @@ export const saveSteamGames = async (storeItems: any[]) => {
 				"full_audio",
 				"subtitles",
 			],
+			["int", "int", "int", "boolean", "boolean", "boolean"],
 			languagePairs,
 			"ON CONFLICT (game_id, elanguage) DO UPDATE SET eadditionallanguage = EXCLUDED.eadditionallanguage, supported = EXCLUDED.supported, full_audio = EXCLUDED.full_audio, subtitles = EXCLUDED.subtitles",
 		);
