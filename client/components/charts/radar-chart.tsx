@@ -3,6 +3,7 @@
 import ReactECharts from "echarts-for-react";
 import * as echarts from "echarts";
 import { useMemo } from "react";
+import type { TooltipComponentFormatterCallbackParams } from "echarts";
 
 import { ChartPoint, ChartResponse } from "@/components/charts/chart-types";
 
@@ -71,8 +72,9 @@ export default function RadarChart({
 			tooltip: {
 				...TOOLTIP,
 				trigger: "item",
-				formatter: (params: any) => {
-					const seriesName = params?.name ?? "";
+				formatter: (params: TooltipComponentFormatterCallbackParams) => {
+					const param = Array.isArray(params) ? params[0] : params;
+					const seriesName = param?.name ?? "";
 					const rows = data.points
 						.slice(0, RADAR_TOOLTIP_LIMIT)
 						.map((point) => ChartTooltip({ point }))

@@ -31,9 +31,6 @@ export function useChartState() {
 		"flat" | "ascending" | "descending"
 	>("flat");
 	const [chartData, setChartData] = useState<ChartResponse | null>(null);
-	const [sortedChartData, setSortedChartData] = useState<ChartResponse | null>(
-		null,
-	);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [bucketError, setBucketError] = useState<string | null>(null);
@@ -112,28 +109,26 @@ export function useChartState() {
 			: bucketSize;
 	}, [bucketConfig, bucketSize]);
 
-	useEffect(() => {
-		if (isBucketChart) setXAxis("bucket");
-	}, [chartType, xAxis]);
+	// The axis pickers never offer "bucket", so only a chart type change can
+	// leave an axis needing a default
+	const changeChartType = useCallback((next: ChartType | "") => {
+		setChartType(next);
 
-	useEffect(() => {
-		if (!groupBy || !chartType) {
-			setChartData(null);
-			return;
+		if (next === "bar" || next === "pie") {
+			setXAxis("bucket");
 		}
-		if (chartType === "scatter") {
-			if (xAxis === "bucket") setXAxis("aggregate_value");
-			if (yAxis === "bucket") setYAxis("count");
+		if (next === "scatter") {
+			setXAxis((x) => (x === "bucket" ? "aggregate_value" : x));
+			setYAxis((y) => (y === "bucket" ? "count" : y));
 		}
-		if (chartType === "radar") {
-			if (xAxis === "bucket") setXAxis("count");
-			if (yAxis === "bucket") setYAxis("aggregate_review_score");
+		if (next === "radar") {
+			setXAxis((x) => (x === "bucket" ? "count" : x));
+			setYAxis((y) => (y === "bucket" ? "aggregate_review_score" : y));
 		}
-	}, [groupBy, chartType, xAxis, yAxis]);
+	}, []);
 
-	// Handle sorting
-	useEffect(() => {
-		if (!chartData || !sortingMode) return;
+	const sortedChartData = useMemo(() => {
+		if (!chartData) return null;
 
 		const sortedPoints = [...chartData.points];
 		const sortedSeries = chartType === "radar" ? xAxis : yAxis;
@@ -149,8 +144,8 @@ export function useChartState() {
 					(Number(b[sortedSeries]) || 0) - (Number(a[sortedSeries]) || 0),
 			);
 		}
-		setSortedChartData({ ...chartData, points: sortedPoints });
-	}, [chartData, sortingMode, xAxis, yAxis]);
+		return { ...chartData, points: sortedPoints };
+	}, [chartData, chartType, sortingMode, xAxis, yAxis]);
 
 	// filter option loading
 	useEffect(() => {
@@ -193,7 +188,6 @@ export function useChartState() {
 	// data fetching
 	useEffect(() => {
 		if (!groupBy || !chartType) {
-			setChartData(null);
 			return;
 		}
 
@@ -273,7 +267,7 @@ export function useChartState() {
 		},
 		actions: {
 			setGroupBy,
-			setChartType,
+			setChartType: changeChartType,
 			setXAxis,
 			setYAxis,
 			setBucketSize,

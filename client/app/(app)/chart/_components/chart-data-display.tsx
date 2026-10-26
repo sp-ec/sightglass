@@ -10,6 +10,7 @@ import ScatterChart from "@/components/charts/scatter-chart";
 import BarChart from "@/components/charts/bar-chart";
 import PieChart from "@/components/charts/pie-chart";
 import RadarChart from "@/components/charts/radar-chart";
+import { ChartResponse } from "@/components/charts/chart-types";
 
 interface Props {
 	chartType: string;
@@ -19,7 +20,7 @@ interface Props {
 	selectedGroupByLabel: string;
 	aggregateMode: string;
 	bucketDisplayValue: string | number;
-	sortedChartData: any;
+	sortedChartData: ChartResponse | null;
 	xAxis: string;
 	yAxis: string;
 }

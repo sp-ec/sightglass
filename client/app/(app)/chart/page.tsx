@@ -8,13 +8,14 @@ import { ChartAxisControls } from "@/app/(app)/chart/_components/chart-axis-cont
 import { ChartModifierControls } from "@/app/(app)/chart/_components/chart-modifier-controls";
 import { ChartDataDisplay } from "@/app/(app)/chart/_components/chart-data-display";
 import { ChartFilterPanel } from "@/app/(app)/chart/_components/chart-filter-panel";
+import { BucketConfig } from "@/components/charts/chart-types";
 
 const bucketSchema = z.number().finite().int().positive();
 
 export default function ChartPage() {
     const { state, actions } = useChartState();
 
-    const handleBucketSizeChange = (val: string, config: any) => {
+    const handleBucketSizeChange = (val: string, config: BucketConfig) => {
         const parsed = Number(val);
         const validation = bucketSchema.safeParse(parsed);
 

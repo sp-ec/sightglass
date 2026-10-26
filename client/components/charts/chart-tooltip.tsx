@@ -1,3 +1,4 @@
+import type { TooltipComponentFormatterCallbackParams } from "echarts";
 import { ChartPoint } from "./chart-types";
 import { formatCents, formatCount, formatPrice } from "@/lib/utils";
 
@@ -72,8 +73,11 @@ export const TOOLTIP = {
 		color: "#f9fafb",
 	},
 	// Scatter carries the whole point as the third tuple element
-	formatter: function (params: any) {
-		const point = params.data?.[2];
+	formatter: function (params: TooltipComponentFormatterCallbackParams) {
+		const param = Array.isArray(params) ? params[0] : params;
+		const point = (param?.data as unknown[] | undefined)?.[2] as
+			| ChartPoint
+			| undefined;
 		return point ? buildTooltip(point) : "";
 	},
 };

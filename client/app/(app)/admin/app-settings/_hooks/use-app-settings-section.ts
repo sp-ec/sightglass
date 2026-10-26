@@ -49,31 +49,29 @@ export const useAppSettingsSection = <TForm, TPayload>({
 
 	// Structural comparison is correct here: these are small plain objects
 	// always built from the same literal shape, so key order is stable
-	const baselineRef = React.useRef<string>(JSON.stringify(initial));
+	const [baseline, setBaseline] = React.useState<string>(JSON.stringify(initial));
+	const [previousInitial, setPreviousInitial] = React.useState(initial);
 
-	React.useEffect(() => {
-		if (initial === null) {
-			return;
+	// Adjusted during render rather than in an effect, so the new server state
+	// lands in the same pass. Only adopted while the admin has no unsaved edits.
+	if (initial !== previousInitial) {
+		setPreviousInitial(initial);
+
+		if (
+			initial !== null &&
+			(value === null || JSON.stringify(value) === baseline)
+		) {
+			setBaseline(JSON.stringify(initial));
+			setValue(initial);
 		}
-
-		// Only adopt server state while the admin has no unsaved edits
-		setValue((current) => {
-			if (current !== null && JSON.stringify(current) !== baselineRef.current) {
-				return current;
-			}
-
-			baselineRef.current = JSON.stringify(initial);
-			return initial;
-		});
-	}, [initial]);
+	}
 
 	const update = React.useCallback((updater: (current: TForm) => TForm) => {
 		setSaved(false);
 		setValue((current) => (current === null ? current : updater(current)));
 	}, []);
 
-	const dirty =
-		value !== null && JSON.stringify(value) !== baselineRef.current;
+	const dirty = value !== null && JSON.stringify(value) !== baseline;
 
 	const save = React.useCallback(async () => {
 		if (value === null) {
@@ -116,7 +114,7 @@ export const useAppSettingsSection = <TForm, TPayload>({
 
 			const body = (await response.json()) as appSettingsView;
 			const next = afterSave ? afterSave(parsed.data) : parsed.data;
-			baselineRef.current = JSON.stringify(next);
+			setBaseline(JSON.stringify(next));
 			setValue(next);
 			onSaved(body);
 			setSaved(true);

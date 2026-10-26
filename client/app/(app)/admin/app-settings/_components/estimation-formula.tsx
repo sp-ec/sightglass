@@ -21,20 +21,33 @@ const Term = ({ children }: { children: React.ReactNode }) => (
 	<span className="font-medium text-primary">{children}</span>
 );
 
-export function EstimationFormula() {
-	const [open, setOpen] = React.useState(true);
+// Opens on a first visit, then remembers the admin's choice
+const readStoredOpen = () => {
+	try {
+		return window.localStorage.getItem(STORAGE_KEY) !== "false";
+	} catch {
+		// Private windows and blocked site data both throw; the default stands
+		return true;
+	}
+};
 
-	React.useEffect(() => {
-		try {
-			// Opens on a first visit, then remembers the admin's choice
-			setOpen(window.localStorage.getItem(STORAGE_KEY) !== "false");
-		} catch {
-			// Private windows and blocked site data both throw; the default stands
-		}
-	}, []);
+const subscribeToStorage = (onChange: () => void) => {
+	window.addEventListener("storage", onChange);
+	return () => window.removeEventListener("storage", onChange);
+};
+
+export function EstimationFormula() {
+	const storedOpen = React.useSyncExternalStore(
+		subscribeToStorage,
+		readStoredOpen,
+		() => true,
+	);
+	// The storage event only fires in other tabs, so this tab's toggles are held here
+	const [toggledOpen, setToggledOpen] = React.useState<boolean | null>(null);
+	const open = toggledOpen ?? storedOpen;
 
 	const onOpenChange = (next: boolean) => {
-		setOpen(next);
+		setToggledOpen(next);
 		try {
 			window.localStorage.setItem(STORAGE_KEY, String(next));
 		} catch {

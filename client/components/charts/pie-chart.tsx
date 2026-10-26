@@ -2,6 +2,7 @@
 
 import ReactECharts from "echarts-for-react";
 import { useMemo } from "react";
+import type { TooltipComponentFormatterCallbackParams } from "echarts";
 
 import { ChartPoint, ChartResponse } from "@/components/charts/chart-types";
 
@@ -28,7 +29,6 @@ export default function PieChart({
 		const seriesData = data.points.map((point) => ({
 			name: String(point[xAxisKey]),
 			value: point[yAxisKey],
-			point: point,
 		}));
 
 		console.log("PieChart data:", seriesData);
@@ -38,8 +38,11 @@ export default function PieChart({
 			tooltip: {
 				...TOOLTIP,
 				trigger: "item",
-				formatter: (params: any) => {
-					return ChartTooltip({ point: params.data.point });
+				formatter: (params: TooltipComponentFormatterCallbackParams) => {
+					const param = Array.isArray(params) ? params[0] : params;
+					const originalPoint = data.points[param.dataIndex];
+
+					return originalPoint ? ChartTooltip({ point: originalPoint }) : "";
 				},
 			},
 			series: [

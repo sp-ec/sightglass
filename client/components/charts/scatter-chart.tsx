@@ -31,7 +31,7 @@ export default function ScatterChart({
 				typeof data.points[0].bucket === "string";
 
 			const seriesData = data.points.map((point) => {
-				return [point[xAxisKey] as any, point[yAxisKey] as any, point];
+				return [point[xAxisKey], point[yAxisKey], point];
 			});
 
 			return {

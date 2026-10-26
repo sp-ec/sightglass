@@ -38,7 +38,7 @@ export function formatPrice(value: number): string {
 }
 
 export function formatAssetUrl(url: string, filename: string): string {
-	let formattedUrl =
+	const formattedUrl =
 		"https://shared.akamai.steamstatic.com/store_item_assets/" + url;
 	return formattedUrl.replace("${FILENAME}", filename);
 }
