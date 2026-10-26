@@ -188,6 +188,8 @@ type aggregationFragment = {
 	// Resolves a bucket key to its display name once per group, after grouping,
 	// instead of joining the name table once per game row
 	lookup?: { bucketSql: string; joinSql: string };
+	// Keeps only the largest buckets by game count, for modes with a long tail
+	bucketLimit?: number;
 };
 
 // Builds the parameterized WHERE clause shared by every chart aggregation query
@@ -345,6 +347,9 @@ const groupedColumnsSql = ["count", "min_value", "max_value"]
 	.map((column) => `grouped_games.${column}`)
 	.join(",\n                ");
 
+// Developer and publisher charts otherwise return tens of thousands of buckets
+const TOP_BUCKET_LIMIT = 50;
+
 const aggregationFragments = (tagsCounted: number | null | undefined) =>
 	({
 		review_count: {
@@ -390,12 +395,14 @@ const aggregationFragments = (tagsCounted: number | null | undefined) =>
 			valueSql: `COALESCE(developers.id, 0)::numeric`,
 			joinSql: `LEFT JOIN game_developers ON games.app_id = game_developers.game_id 
 				  LEFT JOIN developers ON game_developers.developer_id = developers.id`,
+			bucketLimit: TOP_BUCKET_LIMIT,
 		},
 		publisher: {
 			bucketSql: `COALESCE(publishers.name, 'Unknown')`,
 			valueSql: `COALESCE(publishers.id, 0)::numeric`,
 			joinSql: `LEFT JOIN game_publishers ON games.app_id = game_publishers.game_id 
 				  LEFT JOIN publishers ON game_publishers.publisher_id = publishers.id`,
+			bucketLimit: TOP_BUCKET_LIMIT,
 		},
 		category: {
 			bucketSql: `COALESCE(categories.name, 'Unknown')`,
@@ -485,6 +492,7 @@ const buildAggregationQuery = (
                     ${selectColumns}
                 FROM aggregated_games
                 GROUP BY bucket
+                ${fragment.bucketLimit ? `ORDER BY count DESC, bucket ASC LIMIT ${fragment.bucketLimit}` : ""}
             )
             SELECT
                 (${fragment.lookup?.bucketSql ?? "grouped_games.bucket"})::text AS bucket,
