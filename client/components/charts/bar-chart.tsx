@@ -2,6 +2,7 @@
 
 import ReactECharts from "echarts-for-react";
 import { useMemo } from "react";
+import type { TooltipComponentFormatterCallbackParams } from "echarts";
 
 import { ChartPoint, ChartResponse } from "@/components/charts/chart-types";
 import { ChartTooltip } from "@/components/charts/chart-tooltip";
@@ -35,7 +36,7 @@ export default function BarChart({
 			tooltip: {
 				...TOOLTIP,
 				trigger: "axis",
-				formatter: (params: any) => {
+				formatter: (params: TooltipComponentFormatterCallbackParams) => {
 					const param = Array.isArray(params) ? params[0] : params;
 					const originalPoint = data.points[param.dataIndex];
 

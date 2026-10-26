@@ -26,13 +26,10 @@ export function AssetImage({
 	sizes = "(max-width: 768px) 100vw, 33vw",
 	priority,
 }: Props) {
-	const [failed, setFailed] = React.useState(false);
+	// Keyed by src so a new image gets its own attempt
+	const [failedSrc, setFailedSrc] = React.useState<string | null>(null);
 
-	React.useEffect(() => {
-		setFailed(false);
-	}, [src]);
-
-	const missing = !src || failed;
+	const missing = !src || failedSrc === src;
 
 	if (missing && hideOnError) {
 		return null;
@@ -59,7 +56,7 @@ export function AssetImage({
 			sizes={sizes}
 			priority={priority}
 			className={cn("object-cover", className)}
-			onError={() => setFailed(true)}
+			onError={() => setFailedSrc(src)}
 		/>
 	);
 }

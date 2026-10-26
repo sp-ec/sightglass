@@ -15,73 +15,67 @@ import {
 	languageOption,
 	CHART_BUCKET_MIN,
 	CHART_BUCKET_MAX,
+	CHART_METRICS,
+	chartMetric,
 	gameListItem,
 	relatedApp,
 } from "./games.types";
-import { estimationSql } from "@/modules/appSettings/appSettings.types";
 
+// Errors in the games read functions propagate so the controller answers 500;
+// returning an empty result would make an outage look like "no results".
 export const findGameByTitle = async (query: string) => {
-	try {
-		const result = await pool.query(
-			`SELECT app_id, name FROM games
+	const result = await pool.query(
+		`SELECT app_id, name FROM games
        WHERE name ILIKE $1
        ORDER BY similarity(name, $2) DESC
        LIMIT 10;`,
-			[`%${query}%`, query],
-		);
+		[`%${query}%`, query],
+	);
 
-		return result.rows;
-	} catch (error) {
-		return [];
-	}
+	return result.rows;
 };
 
-export const findGameById = async (appId: string) => {
-	try {
-		const gameResult = await pool.query(
-			`SELECT * FROM games
-			JOIN game_assets ON games.app_id = game_assets.game_id
-			JOIN game_platforms on games.app_id = game_platforms.game_id
-			JOIN game_reviews_summary ON games.app_id = game_reviews_summary.game_id
-        		WHERE app_id = $1;`,
-			[appId],
-		);
-		const tagResult = await pool.query(
-			`SELECT tags.name, game_tags.weight, tags.id FROM game_tags
-			JOIN tags ON game_tags.tag_id = tags.id
-        		WHERE game_id = $1
-			ORDER BY game_tags.weight DESC;`,
-			[appId],
-		);
-		const developerResult = await pool.query(
-			`SELECT developers.name, developers.id FROM game_developers
-			JOIN developers ON game_developers.developer_id = developers.id
-        		WHERE game_id = $1;`,
-			[appId],
-		);
-		const publisherResult = await pool.query(
-			`SELECT publishers.name, publishers.id FROM game_publishers
-			JOIN publishers ON game_publishers.publisher_id = publishers.id
-        		WHERE game_id = $1;`,
-			[appId],
-		);
-		const languageResult = await pool.query(
-			`SELECT languages.code, languages.name, game_supported_languages.supported, game_supported_languages.full_audio, game_supported_languages.subtitles FROM game_supported_languages
-			JOIN languages ON game_supported_languages.elanguage = languages.id
-        		WHERE game_id = $1;`,
-			[appId],
-		);
-		return {
-			game: gameResult.rows[0],
-			tags: tagResult.rows as gameTags,
-			developers: developerResult.rows as gameDevelopers,
-			publishers: publisherResult.rows as gamePublishers,
-			languages: languageResult.rows as gameLanguages,
-		};
-	} catch (error) {
-		console.error(error);
-		return null;
-	}
+export const findGameById = async (appId: number) => {
+	const gameResult = await pool.query(
+		`SELECT * FROM games
+		JOIN game_assets ON games.app_id = game_assets.game_id
+		JOIN game_platforms on games.app_id = game_platforms.game_id
+		JOIN game_reviews_summary ON games.app_id = game_reviews_summary.game_id
+        	WHERE app_id = $1;`,
+		[appId],
+	);
+	const tagResult = await pool.query(
+		`SELECT tags.name, game_tags.weight, tags.id FROM game_tags
+		JOIN tags ON game_tags.tag_id = tags.id
+        	WHERE game_id = $1
+		ORDER BY game_tags.weight DESC;`,
+		[appId],
+	);
+	const developerResult = await pool.query(
+		`SELECT developers.name, developers.id FROM game_developers
+		JOIN developers ON game_developers.developer_id = developers.id
+        	WHERE game_id = $1;`,
+		[appId],
+	);
+	const publisherResult = await pool.query(
+		`SELECT publishers.name, publishers.id FROM game_publishers
+		JOIN publishers ON game_publishers.publisher_id = publishers.id
+        	WHERE game_id = $1;`,
+		[appId],
+	);
+	const languageResult = await pool.query(
+		`SELECT languages.code, languages.name, game_supported_languages.supported, game_supported_languages.full_audio, game_supported_languages.subtitles FROM game_supported_languages
+		JOIN languages ON game_supported_languages.elanguage = languages.id
+        	WHERE game_id = $1;`,
+		[appId],
+	);
+	return {
+		game: gameResult.rows[0],
+		tags: tagResult.rows as gameTags,
+		developers: developerResult.rows as gameDevelopers,
+		publishers: publisherResult.rows as gamePublishers,
+		languages: languageResult.rows as gameLanguages,
+	};
 };
 
 // Matches on substring or trigram similarity. Both are served by
@@ -93,63 +87,73 @@ export const findGamesList = async (
 	limit: number,
 	offset: number,
 ): Promise<gameListItem[]> => {
-	try {
-		const result = await pool.query(
-			`SELECT
+	// The page is picked before assets and tags are attached, so OFFSET skips
+	// bare rows instead of fully built ones. rank carries the sort out of it.
+	const result = await pool.query(
+		`SELECT
+			page.app_id,
+			page.name,
+			page.short_description,
+			page.type,
+			page.parent_app_id,
+			game_assets.asset_url_format,
+			game_assets.main_capsule,
+			game_assets.small_capsule,
+			page.review_count,
+			page.percent_positive,
+			page.review_score,
+			page.review_score_label,
+			COALESCE(top_tags.names, ARRAY[]::text[]) AS tags
+		FROM (
+			SELECT
 				games.app_id,
 				games.name,
 				games.short_description,
 				games.type,
 				games.parent_app_id,
-				game_assets.asset_url_format,
-				game_assets.main_capsule,
-				game_assets.small_capsule,
 				reviews.review_count,
 				reviews.percent_positive,
 				reviews.review_score,
 				reviews.review_score_label,
-				COALESCE(top_tags.names, ARRAY[]::text[]) AS tags
+				CASE WHEN $1::text IS NULL THEN 0 ELSE similarity(games.name, $1) END AS rank
 			FROM games
-			LEFT JOIN game_assets ON game_assets.game_id = games.app_id
 			LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
-			LEFT JOIN LATERAL (
-				SELECT array_agg(tags.name ORDER BY ranked.weight DESC) AS names
-				FROM (
-					SELECT tag_id, weight
-					FROM game_tags
-					WHERE game_tags.game_id = games.app_id
-					ORDER BY weight DESC
-					LIMIT 5
-				) ranked
-				JOIN tags ON tags.id = ranked.tag_id
-			) top_tags ON TRUE
 			WHERE ${LIST_SEARCH_SQL}
 			ORDER BY
-				CASE WHEN $1::text IS NULL THEN 0 ELSE similarity(games.name, $1) END DESC,
+				rank DESC,
 				reviews.review_count DESC NULLS LAST,
 				games.app_id ASC
-			LIMIT $2 OFFSET $3;`,
-			[search, limit, offset],
-		);
+			LIMIT $2 OFFSET $3
+		) page
+		LEFT JOIN game_assets ON game_assets.game_id = page.app_id
+		LEFT JOIN LATERAL (
+			SELECT array_agg(tags.name ORDER BY ranked.weight DESC, ranked.tag_id ASC) AS names
+			FROM (
+				SELECT tag_id, weight
+				FROM game_tags
+				WHERE game_tags.game_id = page.app_id
+				ORDER BY weight DESC, tag_id ASC
+				LIMIT 5
+			) ranked
+			JOIN tags ON tags.id = ranked.tag_id
+		) top_tags ON TRUE
+		ORDER BY
+			page.rank DESC,
+			page.review_count DESC NULLS LAST,
+			page.app_id ASC;`,
+		[search, limit, offset],
+	);
 
-		return result.rows as gameListItem[];
-	} catch (error) {
-		console.error(error);
-		return [];
-	}
+	return result.rows as gameListItem[];
 };
 
 export const countGamesList = async (search: string | null): Promise<number> => {
-	try {
-		const result = await pool.query(
-			`SELECT COUNT(*)::int AS count FROM games WHERE ${LIST_SEARCH_SQL};`,
-			[search],
-		);
+	const result = await pool.query(
+		`SELECT COUNT(*)::int AS count FROM games WHERE ${LIST_SEARCH_SQL};`,
+		[search],
+	);
 
-		return (result.rows[0]?.count as number) ?? 0;
-	} catch (error) {
-		return 0;
-	}
+	return (result.rows[0]?.count as number) ?? 0;
 };
 
 // A demo points at its parent; a full game is pointed at by its demo
@@ -157,35 +161,36 @@ export const findRelatedApps = async (
 	appId: number,
 	parentAppId: number | null,
 ): Promise<{ parent: relatedApp | null; demo: relatedApp | null }> => {
-	try {
-		const [parent, demo] = await Promise.all([
-			parentAppId
-				? pool.query(`SELECT app_id, name FROM games WHERE app_id = $1;`, [
-						parentAppId,
-					])
-				: Promise.resolve({ rows: [] }),
-			pool.query(
-				`SELECT app_id, name FROM games
-				WHERE parent_app_id = $1 AND type = 1
-				ORDER BY app_id ASC
-				LIMIT 1;`,
-				[appId],
-			),
-		]);
+	const [parent, demo] = await Promise.all([
+		parentAppId
+			? pool.query(`SELECT app_id, name FROM games WHERE app_id = $1;`, [
+					parentAppId,
+				])
+			: Promise.resolve({ rows: [] }),
+		pool.query(
+			`SELECT app_id, name FROM games
+			WHERE parent_app_id = $1 AND type = 1
+			ORDER BY app_id ASC
+			LIMIT 1;`,
+			[appId],
+		),
+	]);
 
-		return {
-			parent: (parent.rows[0] as relatedApp) ?? null,
-			demo: (demo.rows[0] as relatedApp) ?? null,
-		};
-	} catch (error) {
-		return { parent: null, demo: null };
-	}
+	return {
+		parent: (parent.rows[0] as relatedApp) ?? null,
+		demo: (demo.rows[0] as relatedApp) ?? null,
+	};
 };
 
 type aggregationFragment = {
 	bucketSql: string;
 	valueSql: string;
 	joinSql?: string;
+	// Resolves a bucket key to its display name once per group, after grouping,
+	// instead of joining the name table once per game row
+	lookup?: { bucketSql: string; joinSql: string };
+	// Keeps only the largest buckets by game count, for modes with a long tail
+	bucketLimit?: number;
 };
 
 // Builds the parameterized WHERE clause shared by every chart aggregation query
@@ -277,22 +282,26 @@ const buildChartFilterSql = (filters?: chartFilters): chartFilterSql => {
 	};
 };
 
+// Estimates are precomputed per game by the appSettings rebuild. A game synced
+// since the last rebuild has no row yet, so its estimate columns read NULL.
+const ESTIMATES_JOIN_SQL = `LEFT JOIN game_estimates ON game_estimates.game_id = games.app_id`;
+
 // The per-game columns every chart query carries into its CTE. Extracted so
-// the four query templates below cannot drift apart from one another.
-const perGameColumnsSql = (est: estimationSql): string => `
+// the two query templates below cannot drift apart from one another.
+const PER_GAME_COLUMNS_SQL = `
                 reviews.review_score AS review_score,
                 reviews.percent_positive AS percent_positive,
                 reviews.review_count AS review_count,
                 games.price_in_cents AS price_in_cents,
-                ${est.unitsSql} AS estimated_units,
-                ${est.unitsLowSql} AS estimated_units_low,
-                ${est.unitsHighSql} AS estimated_units_high,
-                ${est.revenueSql} AS estimated_revenue_in_cents,
-                ${est.revenueLowSql} AS estimated_revenue_low_in_cents,
-                ${est.revenueHighSql} AS estimated_revenue_high_in_cents`;
+                game_estimates.estimated_units,
+                game_estimates.estimated_units_low,
+                game_estimates.estimated_units_high,
+                game_estimates.estimated_revenue_in_cents,
+                game_estimates.estimated_revenue_low_in_cents,
+                game_estimates.estimated_revenue_high_in_cents`;
 
 // The columns carried forward when the numeric templates re-select from their
-// first CTE. Mirrors perGameColumnsSql by alias.
+// first CTE. Mirrors PER_GAME_COLUMNS_SQL by alias.
 const carriedColumnsSql = `
                     value,
                     review_score,
@@ -306,42 +315,38 @@ const carriedColumnsSql = `
                     estimated_revenue_low_in_cents,
                     estimated_revenue_high_in_cents`;
 
-const AGGREGATED_COLUMNS = [
-	"value",
-	"review_score",
-	"percent_positive",
-	"review_count",
-	"price_in_cents",
-	"estimated_units",
-	"estimated_units_low",
-	"estimated_units_high",
-	"estimated_revenue_in_cents",
-	"estimated_revenue_low_in_cents",
-	"estimated_revenue_high_in_cents",
-] as const;
-
 // aggregate_value keeps its historical name; every other column is prefixed
 const aggregateAlias = (column: string): string =>
 	column === "value" ? "aggregate_value" : `aggregate_${column}`;
 
-const aggregateColumnsSql = (aggregate: "average" | "median"): string =>
-	AGGREGATED_COLUMNS.map((column) =>
-		aggregate === "median"
+// Each median is its own sort, so medians are computed only for the requested
+// metrics and the rest read NULL. Averages share one pass and are always computed.
+const aggregateColumnsSql = (
+	aggregate: "average" | "median",
+	metrics: readonly chartMetric[] = CHART_METRICS,
+): string =>
+	CHART_METRICS.map((column) => {
+		if (aggregate === "average") {
+			// Cast inside ROUND: the estimate columns are double precision,
+			// which has no two-argument ROUND
+			return `ROUND(AVG(${column})::numeric, 2) AS ${aggregateAlias(column)}`;
+		}
+
+		return metrics.includes(column)
 			? `ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${column}))::numeric, 2) AS ${aggregateAlias(column)}`
-			: // Cast inside ROUND: the estimate columns are double precision,
-				// which has no two-argument ROUND
-				`ROUND(AVG(${column})::numeric, 2) AS ${aggregateAlias(column)}`,
-	).join(",\n                ");
+			: `NULL::numeric AS ${aggregateAlias(column)}`;
+	}).join(",\n                ");
 
-// Prefixes the estimate's tag-multiplier CTE, which is absent when no tag
-// multipliers are configured
-const withClause = (est: estimationSql): string =>
-	est.cteSql ? `WITH ${est.cteSql},` : "WITH";
+// The grouped_games columns the categorical template passes through untouched
+const groupedColumnsSql = ["count", "min_value", "max_value"]
+	.concat(CHART_METRICS.map(aggregateAlias))
+	.map((column) => `grouped_games.${column}`)
+	.join(",\n                ");
 
-const aggregationFragments = (
-	tagsCounted: number | null | undefined,
-	est: estimationSql,
-) =>
+// Developer and publisher charts otherwise return tens of thousands of buckets
+const TOP_BUCKET_LIMIT = 50;
+
+const aggregationFragments = (tagsCounted: number) =>
 	({
 		review_count: {
 			bucketSql: ``,
@@ -360,16 +365,20 @@ const aggregationFragments = (
 			valueSql: `games.price_in_cents::numeric`,
 		},
 		tag: {
-			bucketSql: `COALESCE(tags.name, 'Unknown')`,
-			valueSql: `COALESCE(tags.id, 0)::numeric`,
+			bucketSql: `top_tags.tag_id`,
+			valueSql: `COALESCE(top_tags.tag_id, 0)::numeric`,
 			joinSql: `LEFT JOIN LATERAL (
-                  SELECT tag_id 
-                  FROM game_tags 
-                  WHERE game_tags.game_id = games.app_id 
-                  ORDER BY weight DESC 
-                  LIMIT ${tagsCounted ?? 10}
-              ) top_tags ON true 
-              LEFT JOIN tags ON top_tags.tag_id = tags.id`,
+                  SELECT tag_id
+                  FROM game_tags
+                  WHERE game_tags.game_id = games.app_id
+                  ORDER BY weight DESC, tag_id ASC
+                  LIMIT ${tagsCounted}
+              ) top_tags ON true`,
+			// Untagged games read 'Unknown'; tag ids missing from tags keep their own bucket
+			lookup: {
+				bucketSql: `COALESCE(tags.name, 'Unknown tag ' || grouped_games.bucket, 'Unknown')`,
+				joinSql: `LEFT JOIN tags ON tags.id = grouped_games.bucket`,
+			},
 		},
 		supported_languages: {
 			bucketSql: `COALESCE(languages.name, 'Unknown')`,
@@ -382,12 +391,14 @@ const aggregationFragments = (
 			valueSql: `COALESCE(developers.id, 0)::numeric`,
 			joinSql: `LEFT JOIN game_developers ON games.app_id = game_developers.game_id 
 				  LEFT JOIN developers ON game_developers.developer_id = developers.id`,
+			bucketLimit: TOP_BUCKET_LIMIT,
 		},
 		publisher: {
 			bucketSql: `COALESCE(publishers.name, 'Unknown')`,
 			valueSql: `COALESCE(publishers.id, 0)::numeric`,
 			joinSql: `LEFT JOIN game_publishers ON games.app_id = game_publishers.game_id 
 				  LEFT JOIN publishers ON game_publishers.publisher_id = publishers.id`,
+			bucketLimit: TOP_BUCKET_LIMIT,
 		},
 		category: {
 			bucketSql: `COALESCE(categories.name, 'Unknown')`,
@@ -401,15 +412,15 @@ const aggregationFragments = (
 		},
 		estimated_units: {
 			bucketSql: ``,
-			valueSql: `${est.unitsSql}::numeric`,
+			valueSql: `game_estimates.estimated_units::numeric`,
 		},
 		estimated_revenue: {
 			bucketSql: ``,
-			valueSql: `${est.revenueSql}::numeric`,
+			valueSql: `game_estimates.estimated_revenue_in_cents::numeric`,
 		},
 	}) satisfies Record<
 		chartAggregationMode,
-		{ bucketSql: string; valueSql: string; joinSql?: string }
+		aggregationFragment
 	>;
 
 const getBucketSize = (bucketSize: number | undefined | null) => {
@@ -427,19 +438,19 @@ const buildAggregationQuery = (
 	isNumericMode: boolean,
 	normalizedBucketSize: number,
 	whereSql: string,
-	est: estimationSql,
 	aggregate: "average" | "median",
+	metrics: readonly chartMetric[] | undefined,
 ): string => {
-	const selectColumns = aggregateColumnsSql(aggregate);
+	const selectColumns = aggregateColumnsSql(aggregate, metrics);
 
 	return isNumericMode
-		? `${withClause(est)} numeric_games AS (
+		? `WITH numeric_games AS (
                 SELECT
                     ${fragment.valueSql} AS value,
-                    ${perGameColumnsSql(est)}
+                    ${PER_GAME_COLUMNS_SQL}
                 FROM games
                 LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
-                ${est.joinSql}
+                ${ESTIMATES_JOIN_SQL}
                 ${fragment.joinSql || ""}
                 ${whereSql}
             ),
@@ -458,37 +469,45 @@ const buildAggregationQuery = (
             FROM aggregated_games
             GROUP BY bucket
             ORDER BY min_value ASC;`
-		: `${withClause(est)} aggregated_games AS (
+		: `WITH aggregated_games AS (
                 SELECT
                     ${fragment.bucketSql} AS bucket,
                     ${fragment.valueSql} AS value,
-                    ${perGameColumnsSql(est)}
+                    ${PER_GAME_COLUMNS_SQL}
                 FROM games
                 LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
-                ${est.joinSql}
+                ${ESTIMATES_JOIN_SQL}
                 ${fragment.joinSql || ""}
                 ${whereSql}
+            ),
+            grouped_games AS (
+                SELECT
+                    bucket,
+                    COUNT(*)::int AS count,
+                    MIN(value)::numeric AS min_value,
+                    MAX(value)::numeric AS max_value,
+                    ${selectColumns}
+                FROM aggregated_games
+                GROUP BY bucket
+                ${fragment.bucketLimit ? `ORDER BY count DESC, bucket ASC LIMIT ${fragment.bucketLimit}` : ""}
             )
             SELECT
-                bucket::text AS bucket,
-                COUNT(*)::int AS count,
-                MIN(value)::numeric AS min_value,
-                MAX(value)::numeric AS max_value,
-                ${selectColumns}
-            FROM aggregated_games
-            GROUP BY bucket
-            ORDER BY min_value ASC;`;
+                (${fragment.lookup?.bucketSql ?? "grouped_games.bucket"})::text AS bucket,
+                ${groupedColumnsSql}
+            FROM grouped_games
+            ${fragment.lookup?.joinSql ?? ""}
+            ORDER BY grouped_games.min_value ASC;`;
 };
 
 export const getGameChartAggregation = async (
 	mode: chartAggregationMode,
 	bucketSize: number | null | undefined,
 	aggregate: "average" | "median",
-	tagsCounted: number | null | undefined,
+	tagsCounted: number,
 	filters: chartFilters | undefined,
-	est: estimationSql,
+	metrics: readonly chartMetric[] | undefined,
 ) => {
-	const fragment = aggregationFragments(tagsCounted, est)[mode];
+	const fragment = aggregationFragments(tagsCounted)[mode];
 	let normalizedBucketSize = getBucketSize(bucketSize);
 	const numericBucketModes = [
 		"review_count",
@@ -515,8 +534,8 @@ export const getGameChartAggregation = async (
 			isNumericMode,
 			normalizedBucketSize,
 			whereSql,
-			est,
 			aggregate,
+			metrics,
 		),
 		params,
 	);
@@ -530,25 +549,17 @@ export const getGameChartAggregation = async (
 };
 
 export const findAllTags = async () => {
-	try {
-		const result = await pool.query(
-			`SELECT id, name FROM tags ORDER BY name ASC;`,
-		);
+	const result = await pool.query(
+		`SELECT id, name FROM tags ORDER BY name ASC;`,
+	);
 
-		return result.rows as tagOption[];
-	} catch (error) {
-		return [];
-	}
+	return result.rows as tagOption[];
 };
 
 export const findAllLanguages = async () => {
-	try {
-		const result = await pool.query(
-			`SELECT id, code, name FROM languages ORDER BY name ASC;`,
-		);
+	const result = await pool.query(
+		`SELECT id, code, name FROM languages ORDER BY name ASC;`,
+	);
 
-		return result.rows as languageOption[];
-	} catch (error) {
-		return [];
-	}
+	return result.rows as languageOption[];
 };

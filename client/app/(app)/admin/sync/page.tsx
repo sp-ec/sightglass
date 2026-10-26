@@ -24,12 +24,27 @@ import {
 
 type SyncStatus = "running" | "stopped" | null;
 
+// The most recently synced game row; dates arrive as JSON strings
+type NewestGame = {
+	app_id: number;
+	name: string;
+	store_url_path: string | null;
+	asset_url_format: string | null;
+	main_capsule: string | null;
+	last_updated: string;
+};
+
 type SyncInfo = {
 	status: SyncStatus;
 	fetched: number;
 	total: number;
 	oldestGameDate: Date | null;
-	newestGame: any | null;
+	newestGame: NewestGame | null;
+};
+
+const fetchSyncStatus = async (): Promise<SyncInfo> => {
+	const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/sync/status`);
+	return (await response.json()) as SyncInfo;
 };
 
 export default function SyncPage() {
@@ -38,22 +53,21 @@ export default function SyncPage() {
 	const [actionError, setActionError] = useState<string | null>(null);
 
 	const loadStatus = async () => {
-		const response = await fetch(
-			`${process.env.NEXT_PUBLIC_API_URL}/sync/status`,
-		);
-		const data = (await response.json()) as SyncInfo;
-
-		setSyncInfo(data);
+		setSyncInfo(await fetchSyncStatus());
 	};
 
 	useEffect(() => {
 		let active = true;
+		const refresh = () =>
+			fetchSyncStatus().then((data) => {
+				if (active) {
+					setSyncInfo(data);
+				}
+			});
 
-		void loadStatus();
+		void refresh();
 		const interval = window.setInterval(() => {
-			if (active) {
-				void loadStatus();
-			}
+			void refresh();
 		}, 10000);
 
 		return () => {
@@ -134,7 +148,9 @@ export default function SyncPage() {
 			{showCompleted ? (
 				<div className="rounded-md border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-700 max-w-lg w-full">
 					Sync Completed at{" "}
-					{new Date(syncInfo?.newestGame.last_updated).toLocaleString()}
+					{syncInfo?.newestGame
+						? new Date(syncInfo.newestGame.last_updated).toLocaleString()
+						: null}
 				</div>
 			) : (
 				<>

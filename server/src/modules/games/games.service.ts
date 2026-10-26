@@ -22,12 +22,14 @@ import {
 	chartDateRangeFilter,
 	CHART_BUCKET_MIN,
 	CHART_BUCKET_MAX,
+	CHART_METRICS,
+	chartMetric,
+	CHART_TAGS_COUNTED_MIN,
+	CHART_TAGS_COUNTED_MAX,
+	CHART_TAGS_COUNTED_DEFAULT,
 } from "./games.types";
 import { getEstimationSettings } from "@/modules/appSettings/appSettings.service";
-import {
-	buildEstimationSql,
-	estimateGame,
-} from "@/modules/appSettings/estimation";
+import { estimateGame } from "@/modules/appSettings/estimation";
 
 // Steam does not ship every asset for every game, and a missing filename would
 // otherwise be stringified into the URL as "null" and 404
@@ -123,8 +125,16 @@ export const fetchGamesList = async (
 	};
 };
 
-export const fetchGameById = async (appId: string) => {
-	if (!appId || typeof appId !== "string") {
+export const fetchGameById = async (rawAppId: string) => {
+	// Postgres rejects an id that is not a positive int4 with an error rather
+	// than an empty result, so those read as not found here
+	const appId = Number(rawAppId);
+	if (
+		!rawAppId ||
+		!Number.isInteger(appId) ||
+		appId <= 0 ||
+		appId > 2_147_483_647
+	) {
 		return null;
 	}
 
@@ -299,6 +309,33 @@ export const parseChartFilters = (
 	return hasActiveFilter ? filters : undefined;
 };
 
+// The tooltip shows units and revenue with their low/high band
+const METRIC_BANDS: Partial<Record<chartMetric, chartMetric[]>> = {
+	estimated_units: ["estimated_units_low", "estimated_units_high"],
+	estimated_revenue_in_cents: [
+		"estimated_revenue_low_in_cents",
+		"estimated_revenue_high_in_cents",
+	],
+};
+
+// Accepts response keys (aggregate_review_score) and ignores non-metric axes
+// like count. Absent means every metric; empty means none.
+const parseChartMetrics = (
+	rawMetrics: string | undefined,
+): chartMetric[] | undefined => {
+	if (rawMetrics === undefined) {
+		return undefined;
+	}
+
+	const requested = new Set(
+		rawMetrics.split(",").map((key) => key.trim().replace(/^aggregate_/, "")),
+	);
+
+	return CHART_METRICS.filter((metric) => requested.has(metric)).flatMap(
+		(metric) => [metric, ...(METRIC_BANDS[metric] ?? [])],
+	);
+};
+
 export const fetchTagOptions = async () => {
 	return await findAllTags();
 };
@@ -311,8 +348,9 @@ export const getChartAggregation = async (
 	mode: string,
 	bucketSize: string | undefined,
 	aggregate: "average" | "median" = "average",
-	tagsCounted?: number | null,
+	rawTagsCounted?: string,
 	rawFilters?: string,
+	rawMetrics?: string,
 ) => {
 	const allowedModes: chartAggregationMode[] = [
 		"review_count",
@@ -338,9 +376,15 @@ export const getChartAggregation = async (
 		? Math.min(CHART_BUCKET_MAX, Math.max(CHART_BUCKET_MIN, parsedBucketSize))
 		: null;
 
-	// Estimates are computed inside the chart query from the current settings,
-	// so an admin's change is reflected on the next request
-	const estimationSettings = await getEstimationSettings();
+	// Interpolated into LIMIT, where NaN or a negative value is a SQL error
+	const parsedTagsCounted = Number(rawTagsCounted);
+	const tagsCounted =
+		rawTagsCounted && Number.isFinite(parsedTagsCounted)
+			? Math.min(
+					CHART_TAGS_COUNTED_MAX,
+					Math.max(CHART_TAGS_COUNTED_MIN, Math.floor(parsedTagsCounted)),
+				)
+			: CHART_TAGS_COUNTED_DEFAULT;
 
 	let chartData = await getGameChartAggregation(
 		mode as chartAggregationMode,
@@ -348,7 +392,7 @@ export const getChartAggregation = async (
 		aggregate,
 		tagsCounted,
 		parseChartFilters(rawFilters),
-		buildEstimationSql(estimationSettings),
+		parseChartMetrics(rawMetrics),
 	);
 
 	if (mode === "release_date") {
@@ -373,9 +417,11 @@ export const getChartAggregation = async (
 					point.max_value = new Date(
 						parseInt(point.max_value ?? "0") * 1000,
 					).toDateString();
-					point.aggregate_value = new Date(
-						parseInt(point.aggregate_value ?? "0") * 1000,
-					).toDateString();
+					// Null when the median for this metric was not requested
+					point.aggregate_value =
+						point.aggregate_value === null
+							? null
+							: new Date(parseInt(point.aggregate_value) * 1000).toDateString();
 				}
 				return point;
 			})

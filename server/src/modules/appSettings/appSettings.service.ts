@@ -5,6 +5,7 @@ import {
 	getTagMultipliers,
 	getUncertaintyBands,
 	hasSeedFlag,
+	rebuildGameEstimates,
 	replaceEstimationSettings,
 	seedDefaultTagMultipliers,
 	setSeedFlag,
@@ -28,6 +29,7 @@ import {
 	tagResolution,
 	TAG_MULTIPLIER_SEED_KEY,
 } from "@/modules/appSettings/appSettings.types";
+import { buildGameEstimatesSql } from "@/modules/appSettings/estimation";
 import { validationResult } from "@/modules/auth/auth.types";
 
 const STEAM_API_KEY_PATTERN = /^[A-Za-z0-9._~-]+$/;
@@ -671,7 +673,50 @@ export const updateAppSettings = async (
 	}
 
 	invalidateAppSettingsCache();
+
+	// Awaited so the admin's next chart view already reflects the save
+	if (update.section === "estimation") {
+		await refreshGameEstimates();
+	}
+
 	return { status: "ok", appSettings: await loadAppSettings() };
+};
+
+let estimatesRun: Promise<void> | null = null;
+let estimatesFollowUp: Promise<void> | null = null;
+
+const runGameEstimatesRebuild = async (): Promise<void> => {
+	try {
+		const settings = await getEstimationSettings();
+		await rebuildGameEstimates(buildGameEstimatesSql(settings));
+	} catch (error) {
+		console.error("Failed to rebuild game estimates:", error);
+	}
+};
+
+// Rebuilds game_estimates from the current settings. A call made while a
+// rebuild is running queues one follow-up, which reads settings only when it
+// starts, so the latest save always wins and any number of overlapping calls
+// cost at most two rebuilds. Never rejects: a failure leaves the previous
+// estimates in place, which is better than failing the sync or save that
+// triggered it.
+export const refreshGameEstimates = (): Promise<void> => {
+	if (estimatesFollowUp) {
+		return estimatesFollowUp;
+	}
+
+	if (estimatesRun) {
+		estimatesFollowUp = estimatesRun.then(() => {
+			estimatesFollowUp = null;
+			return refreshGameEstimates();
+		});
+		return estimatesFollowUp;
+	}
+
+	estimatesRun = runGameEstimatesRebuild().finally(() => {
+		estimatesRun = null;
+	});
+	return estimatesRun;
 };
 
 export const getSteamApiKey = async (): Promise<string | null> => {
@@ -684,8 +729,8 @@ export const isRegistrationOpen = async (): Promise<boolean> => {
 	return snapshot.access.registrationEnabled;
 };
 
-// Consumed by the games module to build estimate SQL. Served from the same
-// cached snapshot, so a chart request costs no extra query on a cache hit.
+// Consumed by the game detail estimate and the game_estimates rebuild. Served
+// from the same cached snapshot, so a cache hit costs no extra query.
 export const getEstimationSettings = async (): Promise<estimationSettings> => {
 	const snapshot = await loadSnapshot();
 	return snapshot.estimation;
@@ -713,6 +758,7 @@ export const ensureDefaultTagMultipliers = async (): Promise<void> => {
 
 	await setSeedFlag(TAG_MULTIPLIER_SEED_KEY);
 	invalidateAppSettingsCache();
+	await refreshGameEstimates();
 };
 
 // One-time migration off the STEAM_API_KEY env var. Writes only when the

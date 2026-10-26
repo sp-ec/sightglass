@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS games (
 );
 
 CREATE INDEX IF NOT EXISTS games_name_trgm_idx ON games USING GIN (name gin_trgm_ops);
+-- Demo lookups by parent. Partial because only demos set parent_app_id.
+CREATE INDEX IF NOT EXISTS games_parent_app_id_idx ON games (parent_app_id) WHERE parent_app_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS developers (
     id SERIAL PRIMARY KEY,
@@ -148,6 +150,20 @@ CREATE TABLE IF NOT EXISTS game_reviews_summary (
     percent_positive INTEGER,
     review_score INTEGER,
     review_score_label VARCHAR(100)
+);
+
+-- Derived from the estimation settings and rebuilt wholesale after every sync
+-- and settings save, so chart queries read the estimate instead of computing
+-- it. No foreign key: it is only ever reached by LEFT JOIN from games, so a
+-- row orphaned by a deleted game is invisible until the next rebuild drops it.
+CREATE TABLE IF NOT EXISTS game_estimates (
+    game_id INTEGER PRIMARY KEY,
+    estimated_units DOUBLE PRECISION NOT NULL,
+    estimated_units_low DOUBLE PRECISION NOT NULL,
+    estimated_units_high DOUBLE PRECISION NOT NULL,
+    estimated_revenue_in_cents DOUBLE PRECISION NOT NULL,
+    estimated_revenue_low_in_cents DOUBLE PRECISION NOT NULL,
+    estimated_revenue_high_in_cents DOUBLE PRECISION NOT NULL
 );
 
 -- The application is in "initialization mode" while this table is empty;

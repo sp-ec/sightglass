@@ -1,7 +1,6 @@
 import {
 	estimationSettings,
 	gameEstimate,
-	estimationSql,
 	gameEstimateInput,
 	priceMultiplier,
 	uncertaintyBand,
@@ -11,9 +10,9 @@ import {
 // Gross = Units × Price × RealizedShare × (1 − RefundRate)
 //
 // This file holds the formula twice: once in TypeScript as the readable
-// reference, and once as SQL so the chart queries can aggregate it over the
-// whole library. The two must agree; every edge-case rule below is applied in
-// both, in the same order.
+// reference, and once as SQL so the whole library can be written to
+// game_estimates in one statement. The two must agree; every edge-case rule
+// below is applied in both, in the same order.
 
 const SECONDS_PER_YEAR = 31557600;
 
@@ -205,14 +204,15 @@ const thresholdBranch = (
 	then: value,
 });
 
+// Returns a SELECT yielding one row per game in game_estimates' column order.
 // Every value is inlined from one settings snapshot rather than read from the
-// live tables, so all terms in a query are consistent with each other even if
-// an admin saves settings mid-request. The numbers come from validated
+// live tables, so all terms in a rebuild are consistent with each other even if
+// an admin saves settings mid-rebuild. The numbers come from validated
 // settings and are re-checked by literal().
-export const buildEstimationSql = (
+export const buildGameEstimatesSql = (
 	settings: estimationSettings,
 	now: Date = new Date(),
-): estimationSql => {
+): string => {
 	const hasTagMultipliers = settings.tagMultipliers.length > 0;
 
 	const aggregate =
@@ -277,7 +277,7 @@ export const buildEstimationSql = (
 
 	const rawUnitsSql = `(${reviewCountSql} * ${reviewMultiplierSql})`;
 
-	// "now" is pinned rather than NOW() so one request's estimates are all
+	// "now" is pinned rather than NOW() so one rebuild's estimates are all
 	// computed against the same instant and agree with estimateGame().
 	// A NULL release date counts as brand new, and a future date never exceeds
 	// the starting multiplier.
@@ -304,46 +304,29 @@ export const buildEstimationSql = (
 			),
 		);
 
-	// One row per game, built once and joined in. Three things make this the
-	// cheap shape: every sub-expression is evaluated a single time in the
-	// LATERAL, the six outputs are plain products of those results rather than
-	// re-expansions of the whole formula, and the estimate is computed per
-	// *game* rather than per output row — tag mode duplicates each game by
-	// tags_counted, which would otherwise multiply the cost again.
-	// Revenue is proportional to units, so one revenue-per-unit factor serves
-	// the point estimate and both ends of the band.
-	const cteSql = `${tagMultCteSql ? `${tagMultCteSql},` : ""}
-        game_estimates AS (
+	// Every sub-expression is evaluated a single time in the LATERAL, and the six
+	// outputs are plain products of those results rather than re-expansions of
+	// the whole formula. Revenue is proportional to units, so one
+	// revenue-per-unit factor serves the point estimate and both ends of the band.
+	return `${tagMultCteSql ? `WITH ${tagMultCteSql}` : ""}
+        SELECT
+            games.app_id AS game_id,
+            est.units AS estimated_units,
+            est.units * est.band_low AS estimated_units_low,
+            est.units * est.band_high AS estimated_units_high,
+            est.units * est.revenue_per_unit AS estimated_revenue_in_cents,
+            est.units * est.band_low * est.revenue_per_unit AS estimated_revenue_low_in_cents,
+            est.units * est.band_high * est.revenue_per_unit AS estimated_revenue_high_in_cents
+        FROM games
+        LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
+        ${tagMultJoinSql}
+        CROSS JOIN LATERAL (
             SELECT
-                games.app_id AS game_id,
-                est.units AS estimated_units,
-                est.units * est.band_low AS estimated_units_low,
-                est.units * est.band_high AS estimated_units_high,
-                est.units * est.revenue_per_unit AS estimated_revenue_in_cents,
-                est.units * est.band_low * est.revenue_per_unit AS estimated_revenue_low_in_cents,
-                est.units * est.band_high * est.revenue_per_unit AS estimated_revenue_high_in_cents
-            FROM games
-            LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
-            ${tagMultJoinSql}
-            CROSS JOIN LATERAL (
-                SELECT
-                    ${rawUnitsSql} AS units,
-                    ${bandSql("low")} AS band_low,
-                    ${bandSql("high")} AS band_high,
-                    COALESCE(games.price_in_cents, 0)::double precision
-                        * ${realizedShareSql}
-                        * (1 - ${refundRateSql}) AS revenue_per_unit
-            ) est
-        )`;
-
-	return {
-		cteSql,
-		joinSql: `LEFT JOIN game_estimates ON game_estimates.game_id = games.app_id`,
-		unitsSql: `game_estimates.estimated_units`,
-		unitsLowSql: `game_estimates.estimated_units_low`,
-		unitsHighSql: `game_estimates.estimated_units_high`,
-		revenueSql: `game_estimates.estimated_revenue_in_cents`,
-		revenueLowSql: `game_estimates.estimated_revenue_low_in_cents`,
-		revenueHighSql: `game_estimates.estimated_revenue_high_in_cents`,
-	};
+                ${rawUnitsSql} AS units,
+                ${bandSql("low")} AS band_low,
+                ${bandSql("high")} AS band_high,
+                COALESCE(games.price_in_cents, 0)::double precision
+                    * ${realizedShareSql}
+                    * (1 - ${refundRateSql}) AS revenue_per_unit
+        ) est`;
 };

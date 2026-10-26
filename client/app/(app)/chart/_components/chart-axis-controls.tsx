@@ -6,16 +6,16 @@ import {
     ComboboxItem,
     ComboboxList,
 } from "@/components/ui/combobox";
-import { AxisOption } from "@/components/charts/chart-types";
+import { AxisValue } from "@/components/charts/chart-types";
 
 
 interface Props {
-    axisOptions: readonly AxisOption[];
+    axisOptions: readonly { label: string; value: AxisValue }[];
     xAxisLabel: string;
     selectedYAxisLabel: string;
     xAxisDisabled: boolean;
-    onXAxisChange: (val: any) => void;
-    onYAxisChange: (val: any) => void;
+    onXAxisChange: (val: AxisValue) => void;
+    onYAxisChange: (val: AxisValue) => void;
 }
 
 export function ChartAxisControls({

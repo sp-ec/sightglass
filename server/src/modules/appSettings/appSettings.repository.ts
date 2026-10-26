@@ -1,4 +1,4 @@
-import pool from "@/sql/db";
+import pool, { backgroundPool } from "@/sql/db";
 import {
 	appSettingsRow,
 	estimationSettingsInput,
@@ -209,6 +209,40 @@ export const replaceEstimationSettings = async (
 			);
 		}
 
+		await client.query("COMMIT");
+	} catch (error) {
+		await client.query("ROLLBACK");
+		throw error;
+	} finally {
+		client.release();
+	}
+};
+
+// Delete-and-insert in one transaction rather than TRUNCATE: TRUNCATE's
+// exclusive lock would stall every chart query for the length of the rebuild,
+// whereas this way readers keep seeing the previous rows until COMMIT.
+// SHARE ROW EXCLUSIVE conflicts with itself but not with SELECT, so concurrent
+// rebuilds (including from another process) queue instead of colliding on the
+// primary key. Errors bubble so the caller decides how loudly to fail.
+export const rebuildGameEstimates = async (selectSql: string): Promise<void> => {
+	const client = await backgroundPool.connect();
+
+	try {
+		await client.query("BEGIN");
+		await client.query("LOCK TABLE game_estimates IN SHARE ROW EXCLUSIVE MODE;");
+		await client.query("DELETE FROM game_estimates;");
+		await client.query(
+			`INSERT INTO game_estimates (
+				game_id,
+				estimated_units,
+				estimated_units_low,
+				estimated_units_high,
+				estimated_revenue_in_cents,
+				estimated_revenue_low_in_cents,
+				estimated_revenue_high_in_cents
+			)
+			${selectSql};`,
+		);
 		await client.query("COMMIT");
 	} catch (error) {
 		await client.query("ROLLBACK");

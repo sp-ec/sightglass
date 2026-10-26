@@ -9,7 +9,14 @@ import {
 } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { QuestionTooltip } from "@/components/util/question-tooltip";
-import { GROUP_BY_OPTIONS, CHART_TYPES, BUCKET_CONFIGS } from "@/components/charts/chart-types";
+import {
+    GROUP_BY_OPTIONS,
+    CHART_TYPES,
+    BUCKET_CONFIGS,
+    BucketConfig,
+    ChartType,
+    GroupByValue,
+} from "@/components/charts/chart-types";
 
 const bucketSchema = z.number().finite().int().positive();
 
@@ -18,12 +25,12 @@ interface Props {
     chartType: string;
     bucketSize: string;
     bucketError: string | null;
-    bucketConfig: any;
+    bucketConfig: BucketConfig | null;
     selectedGroupByLabel: string;
     selectedChartTypeLabel: string;
-    onGroupByChange: (value: any) => void;
-    onChartTypeChange: (value: any) => void;
-    onBucketSizeChange: (value: string, config: any) => void;
+    onGroupByChange: (value: GroupByValue) => void;
+    onChartTypeChange: (value: ChartType) => void;
+    onBucketSizeChange: (value: string, config: BucketConfig) => void;
 }
 
 export function ChartPrimaryControls({
@@ -38,10 +45,10 @@ export function ChartPrimaryControls({
     onChartTypeChange,
     onBucketSizeChange,
 }: Props) {
-    const handleGroupBySelect = (value: string) => {
+    const handleGroupBySelect = (value: GroupByValue) => {
 			onGroupByChange(value);
 
-			const config = BUCKET_CONFIGS[value as keyof typeof BUCKET_CONFIGS];
+			const config = BUCKET_CONFIGS[value];
 			onBucketSizeChange(String(config.min), config);
 		};
 
