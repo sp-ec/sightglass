@@ -1,4 +1,4 @@
-import pool from "@/sql/db";
+import pool, { backgroundPool } from "@/sql/db";
 import {
 	appSettingsRow,
 	estimationSettingsInput,
@@ -225,7 +225,7 @@ export const replaceEstimationSettings = async (
 // rebuilds (including from another process) queue instead of colliding on the
 // primary key. Errors bubble so the caller decides how loudly to fail.
 export const rebuildGameEstimates = async (selectSql: string): Promise<void> => {
-	const client = await pool.connect();
+	const client = await backgroundPool.connect();
 
 	try {
 		await client.query("BEGIN");

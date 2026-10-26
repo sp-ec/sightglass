@@ -109,6 +109,11 @@ export type chartAggregationMode =
 export const CHART_BUCKET_MIN = 1;
 export const CHART_BUCKET_MAX = 1000000;
 
+// How many of each game's top tags the tag chart counts; matches the client input
+export const CHART_TAGS_COUNTED_MIN = 1;
+export const CHART_TAGS_COUNTED_MAX = 1000;
+export const CHART_TAGS_COUNTED_DEFAULT = 10;
+
 // Per-game columns each chart bucket aggregates, returned as aggregate_<column>
 export const CHART_METRICS = [
 	"value",

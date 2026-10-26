@@ -1,4 +1,4 @@
-import pool from "@/sql/db";
+import { backgroundPool } from "@/sql/db";
 import {
 	bulkUpsert,
 	bulkUpsertUnnest,
@@ -16,7 +16,7 @@ const cleanUpRelations = async (
 ) => {
 	if (gameIds.length === 0) return;
 	if (validTuples.length === 0) {
-		await pool.query(`DELETE FROM ${table} WHERE game_id = ANY($1::int[])`, [
+		await backgroundPool.query(`DELETE FROM ${table} WHERE game_id = ANY($1::int[])`, [
 			gameIds,
 		]);
 		return;
@@ -53,7 +53,7 @@ const cleanUpRelations = async (
     )
   `;
 
-	await pool.query(query, params);
+	await backgroundPool.query(query, params);
 };
 
 export const saveSteamGames = async (storeItems: any[]) => {
@@ -157,6 +157,7 @@ export const saveSteamGames = async (storeItems: any[]) => {
 			`ON CONFLICT (app_id) DO UPDATE SET
 			name = EXCLUDED.name,
 			type = EXCLUDED.type,
+			parent_app_id = EXCLUDED.parent_app_id,
 			store_url_path = EXCLUDED.store_url_path,
 			steam_release_date = EXCLUDED.steam_release_date,
 			price_in_cents = EXCLUDED.price_in_cents,
@@ -394,19 +395,19 @@ export const saveSteamGames = async (storeItems: any[]) => {
 };
 
 export const getGameCount = async () => {
-	const result = await pool.query("SELECT COUNT(*) FROM games");
+	const result = await backgroundPool.query("SELECT COUNT(*) FROM games");
 	return result.rows[0].count;
 };
 
 export const getOldestGame = async () => {
-	const result = await pool.query(
+	const result = await backgroundPool.query(
 		"SELECT * FROM games ORDER BY last_updated ASC LIMIT 1",
 	);
 	return result.rows[0];
 };
 
 export const getNewestGame = async () => {
-	const result = await pool.query(
+	const result = await backgroundPool.query(
 		"SELECT * FROM games JOIN game_assets on games.app_id = game_assets.game_id ORDER BY last_updated DESC, app_id DESC LIMIT 1",
 	);
 	return result.rows[0];
@@ -429,7 +430,7 @@ export const upsertTags = async (tags: { tagid: number; name: string }[]) => {
         ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name
     `;
 
-	const result = await pool.query(query, values);
+	const result = await backgroundPool.query(query, values);
 	return result.rows[0];
 };
 
@@ -462,6 +463,6 @@ export const upsertCategories = async (
         ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type, name = EXCLUDED.name, image_path = EXCLUDED.image_path
     `;
 
-	const result = await pool.query(query, values);
+	const result = await backgroundPool.query(query, values);
 	return result.rows[0];
 };

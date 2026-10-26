@@ -1,4 +1,4 @@
-import pool from "./db";
+import { backgroundPool } from "./db";
 
 export const bulkUpsert = async (
 	table: string,
@@ -22,7 +22,7 @@ export const bulkUpsert = async (
 	}
 
 	const query = `INSERT INTO ${table} (${columns.join(", ")}) VALUES ${values.join(", ")} ${conflictClause}`;
-	const res = await pool.query(query, flatParams);
+	const res = await backgroundPool.query(query, flatParams);
 	return res.rows;
 };
 
@@ -48,11 +48,11 @@ export const bulkUpsertUnnest = async (
 		.join(", ");
 
 	const query = `INSERT INTO ${table} (${columns.join(", ")}) SELECT * FROM unnest(${unnestArgs}) ${conflictClause}`;
-	const res = await pool.query(query, parallelArrays);
+	const res = await backgroundPool.query(query, parallelArrays);
 	return res.rows;
 };
 
-export const unixToTimestamp =(value: number | null | undefined) =>
+export const unixToTimestamp = (value: number | null | undefined) =>
 	value == null ? null : new Date(value * 1000);
 
 export const chunkArray = <T>(array: T[], size: number): T[][] => {

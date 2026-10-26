@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS games (
 );
 
 CREATE INDEX IF NOT EXISTS games_name_trgm_idx ON games USING GIN (name gin_trgm_ops);
+-- Demo lookups by parent. Partial because only demos set parent_app_id.
+CREATE INDEX IF NOT EXISTS games_parent_app_id_idx ON games (parent_app_id) WHERE parent_app_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS developers (
     id SERIAL PRIMARY KEY,

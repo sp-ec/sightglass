@@ -24,6 +24,9 @@ import {
 	CHART_BUCKET_MAX,
 	CHART_METRICS,
 	chartMetric,
+	CHART_TAGS_COUNTED_MIN,
+	CHART_TAGS_COUNTED_MAX,
+	CHART_TAGS_COUNTED_DEFAULT,
 } from "./games.types";
 import { getEstimationSettings } from "@/modules/appSettings/appSettings.service";
 import { estimateGame } from "@/modules/appSettings/estimation";
@@ -122,8 +125,16 @@ export const fetchGamesList = async (
 	};
 };
 
-export const fetchGameById = async (appId: string) => {
-	if (!appId || typeof appId !== "string") {
+export const fetchGameById = async (rawAppId: string) => {
+	// Postgres rejects an id that is not a positive int4 with an error rather
+	// than an empty result, so those read as not found here
+	const appId = Number(rawAppId);
+	if (
+		!rawAppId ||
+		!Number.isInteger(appId) ||
+		appId <= 0 ||
+		appId > 2_147_483_647
+	) {
 		return null;
 	}
 
@@ -337,7 +348,7 @@ export const getChartAggregation = async (
 	mode: string,
 	bucketSize: string | undefined,
 	aggregate: "average" | "median" = "average",
-	tagsCounted?: number | null,
+	rawTagsCounted?: string,
 	rawFilters?: string,
 	rawMetrics?: string,
 ) => {
@@ -364,6 +375,16 @@ export const getChartAggregation = async (
 	const normalizedBucketSize = Number.isFinite(parsedBucketSize)
 		? Math.min(CHART_BUCKET_MAX, Math.max(CHART_BUCKET_MIN, parsedBucketSize))
 		: null;
+
+	// Interpolated into LIMIT, where NaN or a negative value is a SQL error
+	const parsedTagsCounted = Number(rawTagsCounted);
+	const tagsCounted =
+		rawTagsCounted && Number.isFinite(parsedTagsCounted)
+			? Math.min(
+					CHART_TAGS_COUNTED_MAX,
+					Math.max(CHART_TAGS_COUNTED_MIN, Math.floor(parsedTagsCounted)),
+				)
+			: CHART_TAGS_COUNTED_DEFAULT;
 
 	let chartData = await getGameChartAggregation(
 		mode as chartAggregationMode,
