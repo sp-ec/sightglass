@@ -18,7 +18,6 @@ import {
 	gameListItem,
 	relatedApp,
 } from "./games.types";
-import { estimationSql } from "@/modules/appSettings/appSettings.types";
 
 export const findGameByTitle = async (query: string) => {
 	try {
@@ -277,22 +276,26 @@ const buildChartFilterSql = (filters?: chartFilters): chartFilterSql => {
 	};
 };
 
+// Estimates are precomputed per game by the appSettings rebuild. A game synced
+// since the last rebuild has no row yet, so its estimate columns read NULL.
+const ESTIMATES_JOIN_SQL = `LEFT JOIN game_estimates ON game_estimates.game_id = games.app_id`;
+
 // The per-game columns every chart query carries into its CTE. Extracted so
-// the four query templates below cannot drift apart from one another.
-const perGameColumnsSql = (est: estimationSql): string => `
+// the two query templates below cannot drift apart from one another.
+const PER_GAME_COLUMNS_SQL = `
                 reviews.review_score AS review_score,
                 reviews.percent_positive AS percent_positive,
                 reviews.review_count AS review_count,
                 games.price_in_cents AS price_in_cents,
-                ${est.unitsSql} AS estimated_units,
-                ${est.unitsLowSql} AS estimated_units_low,
-                ${est.unitsHighSql} AS estimated_units_high,
-                ${est.revenueSql} AS estimated_revenue_in_cents,
-                ${est.revenueLowSql} AS estimated_revenue_low_in_cents,
-                ${est.revenueHighSql} AS estimated_revenue_high_in_cents`;
+                game_estimates.estimated_units,
+                game_estimates.estimated_units_low,
+                game_estimates.estimated_units_high,
+                game_estimates.estimated_revenue_in_cents,
+                game_estimates.estimated_revenue_low_in_cents,
+                game_estimates.estimated_revenue_high_in_cents`;
 
 // The columns carried forward when the numeric templates re-select from their
-// first CTE. Mirrors perGameColumnsSql by alias.
+// first CTE. Mirrors PER_GAME_COLUMNS_SQL by alias.
 const carriedColumnsSql = `
                     value,
                     review_score,
@@ -333,15 +336,7 @@ const aggregateColumnsSql = (aggregate: "average" | "median"): string =>
 				`ROUND(AVG(${column})::numeric, 2) AS ${aggregateAlias(column)}`,
 	).join(",\n                ");
 
-// Prefixes the estimate's tag-multiplier CTE, which is absent when no tag
-// multipliers are configured
-const withClause = (est: estimationSql): string =>
-	est.cteSql ? `WITH ${est.cteSql},` : "WITH";
-
-const aggregationFragments = (
-	tagsCounted: number | null | undefined,
-	est: estimationSql,
-) =>
+const aggregationFragments = (tagsCounted: number | null | undefined) =>
 	({
 		review_count: {
 			bucketSql: ``,
@@ -401,11 +396,11 @@ const aggregationFragments = (
 		},
 		estimated_units: {
 			bucketSql: ``,
-			valueSql: `${est.unitsSql}::numeric`,
+			valueSql: `game_estimates.estimated_units::numeric`,
 		},
 		estimated_revenue: {
 			bucketSql: ``,
-			valueSql: `${est.revenueSql}::numeric`,
+			valueSql: `game_estimates.estimated_revenue_in_cents::numeric`,
 		},
 	}) satisfies Record<
 		chartAggregationMode,
@@ -427,19 +422,18 @@ const buildAggregationQuery = (
 	isNumericMode: boolean,
 	normalizedBucketSize: number,
 	whereSql: string,
-	est: estimationSql,
 	aggregate: "average" | "median",
 ): string => {
 	const selectColumns = aggregateColumnsSql(aggregate);
 
 	return isNumericMode
-		? `${withClause(est)} numeric_games AS (
+		? `WITH numeric_games AS (
                 SELECT
                     ${fragment.valueSql} AS value,
-                    ${perGameColumnsSql(est)}
+                    ${PER_GAME_COLUMNS_SQL}
                 FROM games
                 LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
-                ${est.joinSql}
+                ${ESTIMATES_JOIN_SQL}
                 ${fragment.joinSql || ""}
                 ${whereSql}
             ),
@@ -458,14 +452,14 @@ const buildAggregationQuery = (
             FROM aggregated_games
             GROUP BY bucket
             ORDER BY min_value ASC;`
-		: `${withClause(est)} aggregated_games AS (
+		: `WITH aggregated_games AS (
                 SELECT
                     ${fragment.bucketSql} AS bucket,
                     ${fragment.valueSql} AS value,
-                    ${perGameColumnsSql(est)}
+                    ${PER_GAME_COLUMNS_SQL}
                 FROM games
                 LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
-                ${est.joinSql}
+                ${ESTIMATES_JOIN_SQL}
                 ${fragment.joinSql || ""}
                 ${whereSql}
             )
@@ -486,9 +480,8 @@ export const getGameChartAggregation = async (
 	aggregate: "average" | "median",
 	tagsCounted: number | null | undefined,
 	filters: chartFilters | undefined,
-	est: estimationSql,
 ) => {
-	const fragment = aggregationFragments(tagsCounted, est)[mode];
+	const fragment = aggregationFragments(tagsCounted)[mode];
 	let normalizedBucketSize = getBucketSize(bucketSize);
 	const numericBucketModes = [
 		"review_count",
@@ -515,7 +508,6 @@ export const getGameChartAggregation = async (
 			isNumericMode,
 			normalizedBucketSize,
 			whereSql,
-			est,
 			aggregate,
 		),
 		params,

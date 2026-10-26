@@ -7,6 +7,7 @@ import { purgeExpiredSessions } from "./modules/auth/auth.service";
 import {
 	backfillSteamApiKeyFromEnv,
 	ensureDefaultTagMultipliers,
+	refreshGameEstimates,
 } from "./modules/appSettings/appSettings.service";
 
 const app = express();
@@ -29,6 +30,9 @@ const startServer = async () => {
 	// Claims the seed as done as soon as tags exist, so that deleting every tag
 	// multiplier is permanent rather than undone by the seed in tables.sql
 	await ensureDefaultTagMultipliers();
+	// Catches up on anything the table missed while the server was down, such
+	// as a settings change from another instance or a release-date drift
+	await refreshGameEstimates();
 
 	app.listen(port, () => {
 		console.log(`Server running on port ${port}`);

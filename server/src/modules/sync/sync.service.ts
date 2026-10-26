@@ -12,6 +12,7 @@ import { SteamQueryResponse, SyncOutcome } from "./sync.types";
 import {
 	ensureDefaultTagMultipliers,
 	getSteamApiKey,
+	refreshGameEstimates,
 } from "@/modules/appSettings/appSettings.service";
 
 const BATCH_SIZE = 1000;
@@ -93,6 +94,10 @@ export const startGameSync = async (startAt = 0): Promise<SyncOutcome> => {
 		.catch((error) => {
 			console.error("Game sync failed:", error);
 		})
+		// Also after a stop or failure: every batch saved so far changed reviews
+		// and prices. Inside syncPromise so status reads "running" until the
+		// estimates are current.
+		.then(refreshGameEstimates)
 		.finally(() => {
 			syncPromise = null;
 			syncStopRequested = false;

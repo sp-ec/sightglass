@@ -150,6 +150,20 @@ CREATE TABLE IF NOT EXISTS game_reviews_summary (
     review_score_label VARCHAR(100)
 );
 
+-- Derived from the estimation settings and rebuilt wholesale after every sync
+-- and settings save, so chart queries read the estimate instead of computing
+-- it. No foreign key: it is only ever reached by LEFT JOIN from games, so a
+-- row orphaned by a deleted game is invisible until the next rebuild drops it.
+CREATE TABLE IF NOT EXISTS game_estimates (
+    game_id INTEGER PRIMARY KEY,
+    estimated_units DOUBLE PRECISION NOT NULL,
+    estimated_units_low DOUBLE PRECISION NOT NULL,
+    estimated_units_high DOUBLE PRECISION NOT NULL,
+    estimated_revenue_in_cents DOUBLE PRECISION NOT NULL,
+    estimated_revenue_low_in_cents DOUBLE PRECISION NOT NULL,
+    estimated_revenue_high_in_cents DOUBLE PRECISION NOT NULL
+);
+
 -- The application is in "initialization mode" while this table is empty;
 -- the first account created through /api/auth/setup is always the admin
 CREATE TABLE IF NOT EXISTS users (

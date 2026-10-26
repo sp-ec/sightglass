@@ -129,21 +129,6 @@ export type gameEstimate = {
 	revenueHighInCents: number;
 };
 
-// The formula as SQL, for aggregating estimates across the library.
-// cteSql defines a game_estimates CTE holding one row per game, so the formula
-// is evaluated exactly once per game no matter how many times a query's joins
-// duplicate that game's row. The column fragments just reference it.
-export type estimationSql = {
-	cteSql: string;
-	joinSql: string;
-	unitsSql: string;
-	unitsLowSql: string;
-	unitsHighSql: string;
-	revenueSql: string;
-	revenueLowSql: string;
-	revenueHighSql: string;
-};
-
 export type tagMultiplierDefault = { name: string; mult: number };
 
 export const TAG_MULTIPLIER_SEED_KEY = "tag_multipliers";
