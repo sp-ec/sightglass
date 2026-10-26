@@ -15,6 +15,8 @@ import {
 	languageOption,
 	CHART_BUCKET_MIN,
 	CHART_BUCKET_MAX,
+	CHART_METRICS,
+	chartMetric,
 	gameListItem,
 	relatedApp,
 } from "./games.types";
@@ -314,36 +316,31 @@ const carriedColumnsSql = `
                     estimated_revenue_low_in_cents,
                     estimated_revenue_high_in_cents`;
 
-const AGGREGATED_COLUMNS = [
-	"value",
-	"review_score",
-	"percent_positive",
-	"review_count",
-	"price_in_cents",
-	"estimated_units",
-	"estimated_units_low",
-	"estimated_units_high",
-	"estimated_revenue_in_cents",
-	"estimated_revenue_low_in_cents",
-	"estimated_revenue_high_in_cents",
-] as const;
-
 // aggregate_value keeps its historical name; every other column is prefixed
 const aggregateAlias = (column: string): string =>
 	column === "value" ? "aggregate_value" : `aggregate_${column}`;
 
-const aggregateColumnsSql = (aggregate: "average" | "median"): string =>
-	AGGREGATED_COLUMNS.map((column) =>
-		aggregate === "median"
+// Each median is its own sort, so medians are computed only for the requested
+// metrics and the rest read NULL. Averages share one pass and are always computed.
+const aggregateColumnsSql = (
+	aggregate: "average" | "median",
+	metrics: readonly chartMetric[] = CHART_METRICS,
+): string =>
+	CHART_METRICS.map((column) => {
+		if (aggregate === "average") {
+			// Cast inside ROUND: the estimate columns are double precision,
+			// which has no two-argument ROUND
+			return `ROUND(AVG(${column})::numeric, 2) AS ${aggregateAlias(column)}`;
+		}
+
+		return metrics.includes(column)
 			? `ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${column}))::numeric, 2) AS ${aggregateAlias(column)}`
-			: // Cast inside ROUND: the estimate columns are double precision,
-				// which has no two-argument ROUND
-				`ROUND(AVG(${column})::numeric, 2) AS ${aggregateAlias(column)}`,
-	).join(",\n                ");
+			: `NULL::numeric AS ${aggregateAlias(column)}`;
+	}).join(",\n                ");
 
 // The grouped_games columns the categorical template passes through untouched
 const groupedColumnsSql = ["count", "min_value", "max_value"]
-	.concat(AGGREGATED_COLUMNS.map(aggregateAlias))
+	.concat(CHART_METRICS.map(aggregateAlias))
 	.map((column) => `grouped_games.${column}`)
 	.join(",\n                ");
 
@@ -443,8 +440,9 @@ const buildAggregationQuery = (
 	normalizedBucketSize: number,
 	whereSql: string,
 	aggregate: "average" | "median",
+	metrics: readonly chartMetric[] | undefined,
 ): string => {
-	const selectColumns = aggregateColumnsSql(aggregate);
+	const selectColumns = aggregateColumnsSql(aggregate, metrics);
 
 	return isNumericMode
 		? `WITH numeric_games AS (
@@ -508,6 +506,7 @@ export const getGameChartAggregation = async (
 	aggregate: "average" | "median",
 	tagsCounted: number | null | undefined,
 	filters: chartFilters | undefined,
+	metrics: readonly chartMetric[] | undefined,
 ) => {
 	const fragment = aggregationFragments(tagsCounted)[mode];
 	let normalizedBucketSize = getBucketSize(bucketSize);
@@ -537,6 +536,7 @@ export const getGameChartAggregation = async (
 			normalizedBucketSize,
 			whereSql,
 			aggregate,
+			metrics,
 		),
 		params,
 	);

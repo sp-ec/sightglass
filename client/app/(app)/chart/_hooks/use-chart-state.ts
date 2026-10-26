@@ -90,6 +90,19 @@ export function useChartState() {
 	const xAxisDisabled = isBucketChart;
 	// const isStreamgraph = chartType === "streamgraph";
 
+	// Each median costs the server a sort, so median mode requests only the
+	// plotted metrics. Stays null in average mode so axis changes don't refetch.
+	const medianMetrics = useMemo(
+		() =>
+			aggregateMode === "median"
+				? [xAxis, yAxis]
+						.filter((axis) => axis.startsWith("aggregate_"))
+						.sort()
+						.join(",")
+				: null,
+		[aggregateMode, xAxis, yAxis],
+	);
+
 	const bucketDisplayValue = useMemo(() => {
 		if (!bucketConfig) return bucketSize;
 		const parsed = Number(bucketSize);
@@ -198,6 +211,9 @@ export function useChartState() {
 				if (debouncedFilters) {
 					params.set("filters", debouncedFilters);
 				}
+				if (medianMetrics !== null) {
+					params.set("metrics", medianMetrics);
+				}
 				const response = await fetch(
 					`${process.env.NEXT_PUBLIC_API_URL}/games/chart?${params.toString()}`,
 					{ signal: controller.signal },
@@ -223,6 +239,7 @@ export function useChartState() {
 		aggregateMode,
 		tagsCounted,
 		debouncedFilters,
+		medianMetrics,
 	]);
 
 	return {

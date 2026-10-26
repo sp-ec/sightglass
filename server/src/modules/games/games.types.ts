@@ -109,6 +109,23 @@ export type chartAggregationMode =
 export const CHART_BUCKET_MIN = 1;
 export const CHART_BUCKET_MAX = 1000000;
 
+// Per-game columns each chart bucket aggregates, returned as aggregate_<column>
+export const CHART_METRICS = [
+	"value",
+	"review_score",
+	"percent_positive",
+	"review_count",
+	"price_in_cents",
+	"estimated_units",
+	"estimated_units_low",
+	"estimated_units_high",
+	"estimated_revenue_in_cents",
+	"estimated_revenue_low_in_cents",
+	"estimated_revenue_high_in_cents",
+] as const;
+
+export type chartMetric = (typeof CHART_METRICS)[number];
+
 export type chartAggregationPoint = {
 	bucket: string;
 	count: number;
