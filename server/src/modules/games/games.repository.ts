@@ -112,12 +112,12 @@ export const findGamesList = async (
 			LEFT JOIN game_assets ON game_assets.game_id = games.app_id
 			LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
 			LEFT JOIN LATERAL (
-				SELECT array_agg(tags.name ORDER BY ranked.weight DESC) AS names
+				SELECT array_agg(tags.name ORDER BY ranked.weight DESC, ranked.tag_id ASC) AS names
 				FROM (
 					SELECT tag_id, weight
 					FROM game_tags
 					WHERE game_tags.game_id = games.app_id
-					ORDER BY weight DESC
+					ORDER BY weight DESC, tag_id ASC
 					LIMIT 5
 				) ranked
 				JOIN tags ON tags.id = ranked.tag_id
@@ -370,7 +370,7 @@ const aggregationFragments = (tagsCounted: number | null | undefined) =>
                   SELECT tag_id
                   FROM game_tags
                   WHERE game_tags.game_id = games.app_id
-                  ORDER BY weight DESC
+                  ORDER BY weight DESC, tag_id ASC
                   LIMIT ${tagsCounted ?? 10}
               ) top_tags ON true`,
 			// Untagged games read 'Unknown'; tag ids missing from tags keep their own bucket
