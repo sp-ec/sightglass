@@ -14,7 +14,6 @@ http:
     type: json
     data: |-
       {
-        "key": "7D730989D35708DC0AD3BCCDB01B0724",
         "query": {
           "filters": {
             "released_only": true,
@@ -56,6 +55,7 @@ runtime:
         const body = req.getBody();
 
         if (body && typeof body === "object") {
+          body.key = bru.getProcessEnv("STEAM_API_KEY");
           bru.setVar("input_json", body);
         }
 

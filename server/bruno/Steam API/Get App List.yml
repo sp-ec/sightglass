@@ -5,10 +5,10 @@ info:
 
 http:
   method: GET
-  url: https://api.steampowered.com/IStoreService/GetAppList/v1?key=7D730989D35708DC0AD3BCCDB01B0724
+  url: https://api.steampowered.com/IStoreService/GetAppList/v1?key={{process.env.STEAM_API_KEY}}
   params:
     - name: key
-      value: 7D730989D35708DC0AD3BCCDB01B0724
+      value: "{{process.env.STEAM_API_KEY}}"
       type: query
   auth: inherit
 
