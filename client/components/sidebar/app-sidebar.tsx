@@ -79,7 +79,7 @@ export function AppSidebar() {
 	const { user } = useAuth();
 
 	return (
-		<Sidebar>
+		<Sidebar variant="floating">
 			<SidebarHeader>
 				<SidebarMenu>
 					<SidebarMenuItem>
@@ -92,9 +92,11 @@ export function AppSidebar() {
 									height={32}
 								/>
 								<div className="grid flex-1 text-left text-sm leading-tight">
-									<span className="truncate font-medium">Sightglass</span>
+									<span className="truncate text-base font-semibold tracking-tight">
+										Sightglass
+									</span>
 									<span className="truncate text-xs text-muted-foreground">
-										v0.0.1
+										Steam Analytics
 									</span>
 								</div>
 							</Link>

@@ -28,7 +28,7 @@ export function ChartModifierControls({
   const disableSort = chartType === "scatter";
 
   return (
-    <div className="grid gap-4 md:grid-cols-6">
+    <div className="flex flex-wrap items-start gap-x-6 gap-y-4">
       <div className="space-y-2">
         <p className="text-sm font-medium">Aggregate Mode</p>
         <ButtonGroup>
@@ -84,6 +84,7 @@ export function ChartModifierControls({
           min={1}
           max={1000}
           step={1}
+          className="w-32"
           value={tagsCounted ?? 0}
           onChange={(e) => onTagsCountedChange(Number(e.target.value))}
         />

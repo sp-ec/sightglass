@@ -68,7 +68,7 @@ export function EstimationFormula() {
 					<CardContent className="space-y-6 pb-6">
 						<div className="space-y-2">
 							<p className="text-sm font-medium">Estimated units</p>
-							<pre className="overflow-x-auto whitespace-pre rounded-md bg-muted p-4 font-mono text-xs leading-relaxed">
+							<pre className="glass-subtle overflow-x-auto whitespace-pre rounded-lg p-4 font-mono text-xs leading-relaxed">
 								{"Units = Reviews × "}
 								<Term>ReviewMultiplier</Term>
 								{"\n\n"}
@@ -93,7 +93,7 @@ export function EstimationFormula() {
 
 						<div className="space-y-2">
 							<p className="text-sm font-medium">Estimated gross revenue</p>
-							<pre className="overflow-x-auto whitespace-pre rounded-md bg-muted p-4 font-mono text-xs leading-relaxed">
+							<pre className="glass-subtle overflow-x-auto whitespace-pre rounded-lg p-4 font-mono text-xs leading-relaxed">
 								{"Gross = Units × Price × RealizedShare × (1 − RefundRate)\n\n"}
 								{"RealizedShare = max("}
 								<Term>MinMultiplier</Term>

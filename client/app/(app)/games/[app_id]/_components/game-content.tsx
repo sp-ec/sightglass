@@ -47,7 +47,7 @@ export function GameContent({ shortDescription, tags }: Props) {
 							{tags.map((tag) => (
 								<span
 									key={tag.id}
-									className="rounded-md border border-sky-500/70 px-2 py-1 text-sm text-foreground"
+									className="rounded-full border border-sky-500/40 bg-sky-500/10 px-3 py-1 text-sm text-foreground"
 								>
 									{tag.name}
 									{tag.weight > 1 && (

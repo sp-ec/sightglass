@@ -43,7 +43,8 @@ http:
           "include_release": true,
           "include_assets": true,
           "include_supported_languages": true,
-          "include_platforms": true
+          "include_platforms": true,
+          "include_optin_registration_tags": true
         }
       }
   auth: inherit
@@ -63,3 +64,4 @@ settings:
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

@@ -99,7 +99,7 @@ export function ChartFilterPanel({
   const [percentMin, percentMax] = filters.percentPositive;
 
   return (
-    <Card className="w-full shrink-0 lg:w-72">
+    <Card className="w-full shrink-0 lg:w-80">
       <CardHeader>
         <CardTitle>
           Filters

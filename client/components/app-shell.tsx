@@ -54,17 +54,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname();
 
 	return (
-		<div className="min-h-screen bg-background text-foreground">
+		<div className="min-h-screen text-foreground">
 			<SidebarProvider>
 				<AppSidebar />
-				<main className="mx-auto w-full min-h-screen">
-					<header className="flex items-center gap-4 sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-md px-6 py-4">
-						<SidebarTrigger className="cursor-pointer" />
-						<Separator orientation="vertical" />
-						<h1 className="text-sm font-semibold">{titleForPath(pathname)}</h1>
-						{/* <div className="ml-auto">
+				<main className="mx-auto w-full min-w-0 min-h-screen">
+					<header className="glass sticky top-3 z-10 mx-4 mt-3 flex items-center gap-3 rounded-xl px-3 py-2 md:mx-6">
+						<SidebarTrigger className="size-10 cursor-pointer" />
+						<Separator orientation="vertical" className="my-2" />
+						<h1 className="text-lg font-semibold tracking-tight">
+							{titleForPath(pathname)}
+						</h1>
+						<div className="ml-auto">
 							<ThemeToggle />
-						</div> */}
+						</div>
 					</header>
 					<div className="mt-6 mx-auto w-full flex flex-col justify-center min-h-[88vh] p-8">
 						{children}

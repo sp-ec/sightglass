@@ -4,6 +4,8 @@ import ReactECharts from "echarts-for-react";
 import { useMemo } from "react";
 
 import { ChartPoint, ChartResponse } from "@/components/charts/chart-types";
+import { useIsDark } from "@/hooks/use-is-dark";
+import { buildDataZoom } from "@/components/charts/chart-data-zoom";
 
 interface ScatterChartProps {
 	data: ChartResponse | null;
@@ -13,7 +15,7 @@ interface ScatterChartProps {
 	yAxisLabel?: string;
 }
 
-import { TOOLTIP } from "./chart-tooltip";
+import { buildTooltipOption } from "./chart-tooltip";
 import { Skeleton } from "../ui/skeleton";
 
 export default function ScatterChart({
@@ -23,6 +25,8 @@ export default function ScatterChart({
 	xAxisLabel,
 	yAxisLabel,
 }: ScatterChartProps) {
+	const isDark = useIsDark();
+
 	const option = useMemo(() => {
 		if (!data || data.points.length === 0) return {};
 
@@ -35,7 +39,7 @@ export default function ScatterChart({
 			});
 
 			return {
-				tooltip: TOOLTIP,
+				tooltip: buildTooltipOption(isDark),
 				grid: {
 					top: 40,
 					right: 60,
@@ -61,58 +65,7 @@ export default function ScatterChart({
 					nameGap: 40,
 					scale: true,
 				},
-				dataZoom: [
-					{
-						type: "slider",
-						show: true,
-						xAxisIndex: [0],
-						bottom: 10,
-						start: 0,
-						end: 100,
-						filterMode: "none",
-						backgroundColor: "oklch(0.27 0.00 0)",
-						fillerColor: "rgb(16, 29, 47, 0.5)",
-						borderColor: "oklch(0.37 0.00 0)",
-						handleStyle: {
-							color: "oklch(0.68 0.15 237)",
-							borderColor: "#b3d8ff",
-							borderWidth: 1,
-						},
-						moveHandleStyle: {
-							color: "oklch(0.68 0.15 237)",
-						},
-					},
-					{
-						type: "slider",
-						show: true,
-						yAxisIndex: [0],
-						right: 10,
-						start: 0,
-						end: 100,
-						filterMode: "none",
-						backgroundColor: "oklch(0.27 0.00 0)",
-						fillerColor: "rgb(16, 29, 47, 0.5)",
-						borderColor: "oklch(0.37 0.00 0)",
-						handleStyle: {
-							color: "oklch(0.68 0.15 237)",
-							borderColor: "#b3d8ff",
-							borderWidth: 1,
-						},
-						moveHandleStyle: {
-							color: "oklch(0.68 0.15 237)",
-						},
-					},
-					{
-						type: "inside",
-						xAxisIndex: [0],
-						filterMode: "none",
-					},
-					{
-						type: "inside",
-						yAxisIndex: [0],
-						filterMode: "none",
-					},
-				],
+				dataZoom: buildDataZoom(isDark),
 				series: [
 					{
 						type: "scatter",
@@ -127,7 +80,7 @@ export default function ScatterChart({
 					},
 				],
 			};
-	}, [data, xAxisKey, yAxisKey, xAxisLabel, yAxisLabel]);
+	}, [data, xAxisKey, yAxisKey, xAxisLabel, yAxisLabel, isDark]);
 
 	console.log("ScatterChart data:", data);
 

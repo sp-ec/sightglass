@@ -140,13 +140,13 @@ export default function SyncPage() {
 			{actionError && (
 				<div
 					role="alert"
-					className="w-full max-w-lg rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
+					className="w-full max-w-lg rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive backdrop-blur-md"
 				>
 					{actionError}
 				</div>
 			)}
 			{showCompleted ? (
-				<div className="rounded-md border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-700 max-w-lg w-full">
+				<div className="rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-700 backdrop-blur-md dark:text-green-300 max-w-lg w-full">
 					Sync Completed at{" "}
 					{syncInfo?.newestGame
 						? new Date(syncInfo.newestGame.last_updated).toLocaleString()

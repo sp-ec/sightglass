@@ -63,23 +63,44 @@ const buildTooltip = (point: ChartPoint): string => {
 	`;
 };
 
-export const TOOLTIP = {
-	trigger: "item",
-	backgroundColor: "oklch(0.20 0.00 0)",
-	borderColor: "oklch(0.27 0.00 0)",
-	borderWidth: 1,
-	padding: 12,
-	textStyle: {
-		color: "#f9fafb",
+// ECharts renders the tooltip as a detached div, so its colors are set per theme rather than inherited
+const TOOLTIP_COLORS = {
+	light: {
+		background: "oklch(1 0 0 / 0.8)",
+		border: "oklch(0.2 0.02 260 / 0.1)",
+		text: "#0f172a",
+		shadow: "0 16px 40px -12px rgba(15, 23, 42, 0.25)",
 	},
-	// Scatter carries the whole point as the third tuple element
-	formatter: function (params: TooltipComponentFormatterCallbackParams) {
-		const param = Array.isArray(params) ? params[0] : params;
-		const point = (param?.data as unknown[] | undefined)?.[2] as
-			| ChartPoint
-			| undefined;
-		return point ? buildTooltip(point) : "";
+	dark: {
+		background: "oklch(0.20 0.015 262 / 0.75)",
+		border: "oklch(1 0 0 / 0.1)",
+		text: "#f9fafb",
+		shadow: "0 16px 40px -12px rgba(0, 0, 0, 0.5)",
 	},
+};
+
+export const buildTooltipOption = (isDark: boolean) => {
+	const colors = isDark ? TOOLTIP_COLORS.dark : TOOLTIP_COLORS.light;
+
+	return {
+		trigger: "item",
+		backgroundColor: colors.background,
+		borderColor: colors.border,
+		borderWidth: 1,
+		padding: 14,
+		extraCssText: `border-radius: 12px; backdrop-filter: blur(16px) saturate(160%); box-shadow: ${colors.shadow};`,
+		textStyle: {
+			color: colors.text,
+		},
+		// Scatter carries the whole point as the third tuple element
+		formatter: function (params: TooltipComponentFormatterCallbackParams) {
+			const param = Array.isArray(params) ? params[0] : params;
+			const point = (param?.data as unknown[] | undefined)?.[2] as
+				| ChartPoint
+				| undefined;
+			return point ? buildTooltip(point) : "";
+		},
+	};
 };
 
 export const ChartTooltip = ({ point }: { point: ChartPoint }): string =>

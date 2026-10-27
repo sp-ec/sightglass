@@ -47,7 +47,7 @@ export function AccessTab({ initial, onSaved }: Props) {
 				</CardDescription>
 			</CardHeader>
 			<CardContent>
-				<div className="flex items-center justify-between gap-4 rounded-md border p-4">
+				<div className="glass-subtle flex items-center justify-between gap-4 rounded-lg p-4">
 					<div className="space-y-1">
 						<p className="text-sm font-medium">Registration enabled</p>
 						<p className="text-sm text-muted-foreground">

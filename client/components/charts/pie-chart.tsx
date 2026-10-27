@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import type { TooltipComponentFormatterCallbackParams } from "echarts";
 
 import { ChartPoint, ChartResponse } from "@/components/charts/chart-types";
+import { useIsDark } from "@/hooks/use-is-dark";
 
 interface PieChartProps {
 	data: ChartResponse | null;
@@ -14,7 +15,7 @@ interface PieChartProps {
 	yAxisLabel?: string;
 }
 
-import { TOOLTIP, ChartTooltip } from "./chart-tooltip";
+import { buildTooltipOption, ChartTooltip } from "./chart-tooltip";
 import { Skeleton } from "../ui/skeleton";
 
 export default function PieChart({
@@ -24,6 +25,8 @@ export default function PieChart({
 	xAxisLabel,
 	yAxisLabel,
 }: PieChartProps) {
+	const isDark = useIsDark();
+
 	const option = useMemo(() => {
 		if (!data || data.points.length === 0) return {};
 		const seriesData = data.points.map((point) => ({
@@ -36,7 +39,7 @@ export default function PieChart({
 		return {
 			color: ['#1D4C9D', '#1396C6', '#77C414', '#FCD92C', '#ED912A', '#E33838'],
 			tooltip: {
-				...TOOLTIP,
+				...buildTooltipOption(isDark),
 				trigger: "item",
 				formatter: (params: TooltipComponentFormatterCallbackParams) => {
 					const param = Array.isArray(params) ? params[0] : params;
@@ -57,7 +60,7 @@ export default function PieChart({
 				},
 			],
 		};
-	}, [data, xAxisKey, yAxisKey, xAxisLabel, yAxisLabel]);
+	}, [data, xAxisKey, yAxisKey, xAxisLabel, yAxisLabel, isDark]);
 
 	console.log(xAxisKey, yAxisKey, xAxisLabel, yAxisLabel);
 

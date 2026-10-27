@@ -52,7 +52,7 @@ export function GameAssetGallery({ assets }: { assets: GameAssets }) {
 						const tile = (
 							<div
 								className={cn(
-									"relative w-full overflow-hidden rounded-md border bg-muted p-2",
+									"glass-subtle relative w-full overflow-hidden rounded-lg p-2",
 									field.wide ? "h-64" : "h-44",
 								)}
 							>

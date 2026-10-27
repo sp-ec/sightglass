@@ -6,6 +6,7 @@ import { useMemo } from "react";
 import type { TooltipComponentFormatterCallbackParams } from "echarts";
 
 import { ChartPoint, ChartResponse } from "@/components/charts/chart-types";
+import { useIsDark } from "@/hooks/use-is-dark";
 
 interface RadarChartProps {
 	data: ChartResponse | null;
@@ -15,11 +16,26 @@ interface RadarChartProps {
 	yAxisLabel?: string;
 }
 
-import { TOOLTIP, ChartTooltip } from "./chart-tooltip";
+import { buildTooltipOption, ChartTooltip } from "./chart-tooltip";
 import { Skeleton } from "../ui/skeleton";
 
 // A radar tooltip covers every bucket at once, so cap it before it runs off screen
 const RADAR_TOOLTIP_LIMIT = 8;
+
+const RADAR_COLORS = {
+	light: {
+		bands: ["rgba(15, 23, 42, 0.03)", "rgba(15, 23, 42, 0.06)"],
+		bandShadow: "rgba(15, 23, 42, 0.08)",
+		line: "rgba(15, 23, 42, 0.12)",
+		label: "#475569",
+	},
+	dark: {
+		bands: ["oklch(26.9% 0 0)", "oklch(30.0% 0 0)"],
+		bandShadow: "rgba(0, 0, 0, 0.2)",
+		line: "rgba(255, 255, 255, 0.12)",
+		label: "#cbd5e1",
+	},
+};
 
 export default function RadarChart({
 	data,
@@ -28,6 +44,9 @@ export default function RadarChart({
 	xAxisLabel,
 	yAxisLabel,
 }: RadarChartProps) {
+	const isDark = useIsDark();
+	const colors = isDark ? RADAR_COLORS.dark : RADAR_COLORS.light;
+
 	const option = useMemo(() => {
 		if (!data || data.points.length === 0) return {};
 
@@ -70,7 +89,7 @@ export default function RadarChart({
 			// ECharts reports a radar hover as the whole series rather than the
 			// single vertex under the cursor, so the tooltip lists each bucket
 			tooltip: {
-				...TOOLTIP,
+				...buildTooltipOption(isDark),
 				trigger: "item",
 				formatter: (params: TooltipComponentFormatterCallbackParams) => {
 					const param = Array.isArray(params) ? params[0] : params;
@@ -93,10 +112,19 @@ export default function RadarChart({
 				radius: 400,
 				startAngle: 90,
 				splitNumber: 4,
+				axisName: {
+					color: colors.label,
+				},
+				axisLine: {
+					lineStyle: { color: colors.line },
+				},
+				splitLine: {
+					lineStyle: { color: colors.line },
+				},
 				splitArea: {
 					areaStyle: {
-						color: ["oklch(26.9% 0 0)", "oklch(30.0% 0 0)"],
-						shadowColor: "rgba(0, 0, 0, 0.2)",
+						color: colors.bands,
+						shadowColor: colors.bandShadow,
 						shadowBlur: 10,
 					},
 				},
@@ -146,7 +174,7 @@ export default function RadarChart({
 				},
 			],
 		};
-	}, [data, xAxisKey, yAxisKey, xAxisLabel, yAxisLabel]);
+	}, [data, xAxisKey, yAxisKey, xAxisLabel, yAxisLabel, isDark, colors]);
 
 	console.log(xAxisKey, yAxisKey, xAxisLabel, yAxisLabel);
 

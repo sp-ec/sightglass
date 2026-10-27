@@ -5,7 +5,9 @@ import { useMemo } from "react";
 import type { TooltipComponentFormatterCallbackParams } from "echarts";
 
 import { ChartPoint, ChartResponse } from "@/components/charts/chart-types";
+import { useIsDark } from "@/hooks/use-is-dark";
 import { ChartTooltip } from "@/components/charts/chart-tooltip";
+import { buildDataZoom } from "@/components/charts/chart-data-zoom";
 
 interface BarChartProps {
 	data: ChartResponse | null;
@@ -15,7 +17,7 @@ interface BarChartProps {
 	yAxisLabel?: string;
 }
 
-import { TOOLTIP } from "./chart-tooltip";
+import { buildTooltipOption } from "./chart-tooltip";
 import { Skeleton } from "../ui/skeleton";
 
 export default function BarChart({
@@ -25,6 +27,8 @@ export default function BarChart({
 	xAxisLabel,
 	yAxisLabel,
 }: BarChartProps) {
+	const isDark = useIsDark();
+
 	const option = useMemo(() => {
 		if (!data || data.points.length === 0) return {};
 		const seriesData = data.points.map((point) => [
@@ -34,7 +38,7 @@ export default function BarChart({
 
 		return {
 			tooltip: {
-				...TOOLTIP,
+				...buildTooltipOption(isDark),
 				trigger: "axis",
 				formatter: (params: TooltipComponentFormatterCallbackParams) => {
 					const param = Array.isArray(params) ? params[0] : params;
@@ -64,58 +68,7 @@ export default function BarChart({
 				nameGap: 40,
 				scale: true,
 			},
-			dataZoom: [
-				{
-					type: "slider",
-					show: true,
-					xAxisIndex: [0],
-					bottom: 10,
-					start: 0,
-					end: 100,
-					filterMode: "none",
-					backgroundColor: "oklch(0.27 0.00 0)",
-					fillerColor: "rgb(16, 29, 47, 0.5)",
-					borderColor: "oklch(0.37 0.00 0)",
-					handleStyle: {
-						color: "oklch(0.68 0.15 237)", // Handle core button color
-						borderColor: "#b3d8ff", // Handle outer ring stroke color
-						borderWidth: 1,
-					},
-					moveHandleStyle: {
-						color: "oklch(0.68 0.15 237)",
-					},
-				},
-				{
-					type: "slider",
-					show: true,
-					yAxisIndex: [0],
-					right: 10,
-					start: 0,
-					end: 100,
-					filterMode: "none",
-					backgroundColor: "oklch(0.27 0.00 0)",
-					fillerColor: "rgb(16, 29, 47, 0.5)",
-					borderColor: "oklch(0.37 0.00 0)",
-					handleStyle: {
-						color: "oklch(0.68 0.15 237)", // Handle core button color
-						borderColor: "#b3d8ff", // Handle outer ring stroke color
-						borderWidth: 1,
-					},
-					moveHandleStyle: {
-						color: "oklch(0.68 0.15 237)",
-					},
-				},
-				{
-					type: "inside",
-					xAxisIndex: [0],
-					filterMode: "none",
-				},
-				{
-					type: "inside",
-					yAxisIndex: [0],
-					filterMode: "none",
-				},
-			],
+			dataZoom: buildDataZoom(isDark),
 			series: [
 				{
 					type: "bar",
@@ -129,7 +82,7 @@ export default function BarChart({
 				},
 			],
 		};
-	}, [data, xAxisKey, yAxisKey, xAxisLabel, yAxisLabel]);
+	}, [data, xAxisKey, yAxisKey, xAxisLabel, yAxisLabel, isDark]);
 
 	console.log("BarChart data:", data);
 

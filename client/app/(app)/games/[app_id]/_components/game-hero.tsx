@@ -50,7 +50,7 @@ export function GameHero({
 		.join(" · ");
 
 	return (
-		<section className="relative overflow-hidden rounded-xl border">
+		<section className="glass relative isolate overflow-hidden rounded-xl">
 			{/* Decorative backdrop; hidden entirely when Steam has none */}
 			<div className="absolute inset-0 -z-10">
 				<AssetImage
@@ -61,10 +61,10 @@ export function GameHero({
 					className="scale-110 blur-xl opacity-40"
 				/>
 			</div>
-			<div className="absolute inset-0 -z-10 bg-gradient-to-br from-background/85 via-background/80 to-background/95" />
+			<div className="absolute inset-0 -z-10 bg-gradient-to-br from-background/70 via-background/60 to-background/85" />
 
 			<div className="flex flex-col gap-6 p-6 md:flex-row md:items-start">
-				<div className="relative aspect-[460/215] w-full shrink-0 overflow-hidden rounded-lg border bg-muted md:w-[340px]">
+				<div className="relative aspect-[460/215] w-full shrink-0 overflow-hidden rounded-lg border border-glass-border bg-muted shadow-lg md:w-[340px]">
 					<AssetImage
 						src={assets?.main_capsule ?? assets?.header ?? null}
 						alt={game.name}
