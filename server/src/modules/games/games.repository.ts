@@ -18,6 +18,8 @@ import {
 	CHART_METRICS,
 	chartMetric,
 	gameListItem,
+	gameListSort,
+	sortOrder,
 	relatedApp,
 } from "./games.types";
 
@@ -80,13 +82,67 @@ export const findGameById = async (appId: number) => {
 
 // Matches on substring or trigram similarity. Both are served by
 // games_name_trgm_idx; an empty search matches everything.
-const LIST_SEARCH_SQL = `($1::text IS NULL OR games.name ILIKE '%' || $1 || '%' OR games.name % $1)`;
+const listSearchSql = (param: string) =>
+	`(${param}::text IS NULL OR games.name ILIKE '%' || ${param} || '%' OR games.name % ${param})`;
+
+// The list shares the chart filters; the search param is numbered after theirs
+const buildListWhereSql = (
+	search: string | null,
+	filters: chartFilters | undefined,
+) => {
+	const { whereSql, params } = buildChartFilterSql(filters);
+	params.push(search);
+	const searchParam = `$${params.length}`;
+	const searchSql = listSearchSql(searchParam);
+
+	return {
+		whereSql: whereSql ? `${whereSql} AND ${searchSql}` : `WHERE ${searchSql}`,
+		searchParam,
+		params,
+	};
+};
+
+// Rows synced before unixToTimestamp mapped Steam's 0 to NULL hold the epoch,
+// shifted to 1969-12-31 by the sync's local timezone. Both read as unknown.
+const LIST_RELEASE_DATE_SQL = `CASE WHEN games.steam_release_date > '1970-01-01' THEN games.steam_release_date END`;
+
+// Sort keys map to fixed column names, so no client input reaches ORDER BY
+const LIST_SORT_COLUMNS: Record<Exclude<gameListSort, "relevance">, string> = {
+	review_count: "review_count",
+	percent_positive: "percent_positive",
+	release_date: "steam_release_date",
+	price: "price_in_cents",
+	name: "name",
+};
+
+// Missing values sort last in either order. Ties fall back to the most
+// reviewed, then app_id, so a row never appears on two pages.
+const listOrderSql = (
+	sort: gameListSort,
+	order: sortOrder,
+	prefix: string,
+): string => {
+	const primary =
+		sort === "relevance"
+			? `${prefix}rank DESC`
+			: `${prefix}${LIST_SORT_COLUMNS[sort]} ${order === "asc" ? "ASC" : "DESC"} NULLS LAST`;
+
+	return `${primary}, ${prefix}review_count DESC NULLS LAST, ${prefix}app_id ASC`;
+};
 
 export const findGamesList = async (
 	search: string | null,
+	filters: chartFilters | undefined,
+	sort: gameListSort,
+	order: sortOrder,
 	limit: number,
 	offset: number,
 ): Promise<gameListItem[]> => {
+	const { whereSql, searchParam, params } = buildListWhereSql(search, filters);
+	params.push(limit, offset);
+	const limitParam = `$${params.length - 1}`;
+	const offsetParam = `$${params.length}`;
+
 	// The page is picked before assets and tags are attached, so OFFSET skips
 	// bare rows instead of fully built ones. rank carries the sort out of it.
 	const result = await pool.query(
@@ -99,10 +155,13 @@ export const findGamesList = async (
 			game_assets.asset_url_format,
 			game_assets.main_capsule,
 			game_assets.small_capsule,
+			game_assets.header,
 			page.review_count,
 			page.percent_positive,
 			page.review_score,
 			page.review_score_label,
+			page.steam_release_date,
+			page.price_in_cents,
 			COALESCE(top_tags.names, ARRAY[]::text[]) AS tags
 		FROM (
 			SELECT
@@ -111,19 +170,18 @@ export const findGamesList = async (
 				games.short_description,
 				games.type,
 				games.parent_app_id,
+				${LIST_RELEASE_DATE_SQL} AS steam_release_date,
+				games.price_in_cents,
 				reviews.review_count,
 				reviews.percent_positive,
 				reviews.review_score,
 				reviews.review_score_label,
-				CASE WHEN $1::text IS NULL THEN 0 ELSE similarity(games.name, $1) END AS rank
+				CASE WHEN ${searchParam}::text IS NULL THEN 0 ELSE similarity(games.name, ${searchParam}) END AS rank
 			FROM games
 			LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
-			WHERE ${LIST_SEARCH_SQL}
-			ORDER BY
-				rank DESC,
-				reviews.review_count DESC NULLS LAST,
-				games.app_id ASC
-			LIMIT $2 OFFSET $3
+			${whereSql}
+			ORDER BY ${listOrderSql(sort, order, "")}
+			LIMIT ${limitParam} OFFSET ${offsetParam}
 		) page
 		LEFT JOIN game_assets ON game_assets.game_id = page.app_id
 		LEFT JOIN LATERAL (
@@ -137,20 +195,24 @@ export const findGamesList = async (
 			) ranked
 			JOIN tags ON tags.id = ranked.tag_id
 		) top_tags ON TRUE
-		ORDER BY
-			page.rank DESC,
-			page.review_count DESC NULLS LAST,
-			page.app_id ASC;`,
-		[search, limit, offset],
+		ORDER BY ${listOrderSql(sort, order, "page.")};`,
+		params,
 	);
 
 	return result.rows as gameListItem[];
 };
 
-export const countGamesList = async (search: string | null): Promise<number> => {
+// The reviews join is dropped by the planner when no review filter uses it
+export const countGamesList = async (
+	search: string | null,
+	filters: chartFilters | undefined,
+): Promise<number> => {
+	const { whereSql, params } = buildListWhereSql(search, filters);
 	const result = await pool.query(
-		`SELECT COUNT(*)::int AS count FROM games WHERE ${LIST_SEARCH_SQL};`,
-		[search],
+		`SELECT COUNT(*)::int AS count FROM games
+		LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
+		${whereSql};`,
+		params,
 	);
 
 	return (result.rows[0]?.count as number) ?? 0;

@@ -63,20 +63,24 @@ export type gameListItem = {
 	asset_url_format: string | null;
 	main_capsule: string | null;
 	small_capsule: string | null;
+	header: string | null;
 	review_count: number | null;
 	percent_positive: number | null;
 	review_score: number | null;
 	review_score_label: string | null;
+	steam_release_date: string | null;
+	price_in_cents: number | null;
 	tags: string[];
 };
 
-// The same row with the capsule resolved to a URL, as the client sees it
+// The same row with the capsules resolved to URLs, as the client sees it
 export type gameListEntry = Omit<
 	gameListItem,
-	"asset_url_format" | "main_capsule" | "small_capsule"
+	"asset_url_format" | "main_capsule" | "small_capsule" | "header"
 > & {
 	main_capsule: string | null;
 	small_capsule: string | null;
+	header: string | null;
 	is_demo: boolean;
 };
 
@@ -91,6 +95,19 @@ export type gameListResponse = {
 export type relatedApp = { app_id: number; name: string };
 
 export const GAMES_PAGE_SIZE = 10;
+
+export const GAMES_LIST_SORTS = [
+	"relevance",
+	"review_count",
+	"percent_positive",
+	"release_date",
+	"price",
+	"name",
+] as const;
+
+export type gameListSort = (typeof GAMES_LIST_SORTS)[number];
+
+export type sortOrder = "asc" | "desc";
 
 export type chartAggregationMode =
 	| "review_count"
@@ -184,7 +201,7 @@ export type chartFilters = {
 
 export type chartFilterSql = {
 	whereSql: string;
-	params: (number | string | boolean | number[])[];
+	params: (number | string | boolean | number[] | null)[];
 };
 
 export type tagOption = {

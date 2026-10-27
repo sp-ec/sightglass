@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
 import {
   Card,
   CardAction,
@@ -7,18 +6,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Slider } from "@/components/ui/slider";
-import { QuestionTooltip } from "@/components/util/question-tooltip";
+import {
+  DemoFilterField,
+  PercentPositiveField,
+  RangeField,
+} from "@/components/filters/filter-fields";
 import { ChartFilterChipSelect } from "@/app/(app)/chart/_components/chart-filter-chip-select";
 import {
   ChartFilterMode,
   ChartFilters,
   FilterOption,
-  PERCENT_POSITIVE_MAX,
-  PERCENT_POSITIVE_MIN,
-  RangeInput,
 } from "@/components/charts/chart-types";
 
 interface Props {
@@ -33,60 +31,9 @@ interface Props {
   onReset: () => void;
 }
 
-interface RangeFieldProps {
-  label: string;
-  type: "number" | "date";
-  value: RangeInput;
-  step?: number;
-  min?: number;
-  tooltip?: string;
-  onChange: (value: RangeInput) => void;
-}
-
 // The native calendar indicator crowds the value at the panel's width
 const DATE_INPUT_CLASSNAME =
   "px-1.5 text-[0.625rem] md:text-[0.625rem] [&::-webkit-calendar-picker-indicator]:size-3 [&::-webkit-calendar-picker-indicator]:p-0";
-
-function RangeField({
-  label,
-  type,
-  value,
-  step,
-  min,
-  tooltip,
-  onChange,
-}: RangeFieldProps) {
-  const inputClassName = type === "date" ? DATE_INPUT_CLASSNAME : undefined;
-
-  return (
-    <div className="space-y-2">
-      <p className="flex flex-row gap-1 text-sm font-medium">
-        {label} {tooltip && <QuestionTooltip message={tooltip} />}
-      </p>
-      <div className="flex items-center gap-2">
-        <Input
-          type={type}
-          step={step}
-          min={min}
-          className={inputClassName}
-          placeholder="Min"
-          value={value.min}
-          onChange={(e) => onChange({ ...value, min: e.target.value })}
-        />
-        <span className="text-xs text-muted-foreground">to</span>
-        <Input
-          type={type}
-          step={step}
-          min={min}
-          className={inputClassName}
-          placeholder="Max"
-          value={value.max}
-          onChange={(e) => onChange({ ...value, max: e.target.value })}
-        />
-      </div>
-    </div>
-  );
-}
 
 export function ChartFilterPanel({
   filters,
@@ -96,8 +43,6 @@ export function ChartFilterPanel({
   onFilterChange,
   onReset,
 }: Props) {
-  const [percentMin, percentMax] = filters.percentPositive;
-
   return (
     <Card className="w-full shrink-0 lg:w-80">
       <CardHeader>
@@ -124,6 +69,7 @@ export function ChartFilterPanel({
         <RangeField
           label="Release Date"
           type="date"
+          inputClassName={DATE_INPUT_CLASSNAME}
           value={filters.releaseDate}
           onChange={(value) => onFilterChange("releaseDate", value)}
         />
@@ -142,41 +88,10 @@ export function ChartFilterPanel({
 
         <Separator />
 
-        <div className="space-y-2">
-          <p className="flex flex-row gap-1 text-sm font-medium">
-            Is Demo{" "}
-            <QuestionTooltip message="Limit results to games that are, or are not, demos." />
-          </p>
-          <ButtonGroup className="w-full">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              disabled={filters.isDemo === null}
-              onClick={() => onFilterChange("isDemo", null)}
-            >
-              Any
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              disabled={filters.isDemo === true}
-              onClick={() => onFilterChange("isDemo", true)}
-            >
-              True
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              disabled={filters.isDemo === false}
-              onClick={() => onFilterChange("isDemo", false)}
-            >
-              False
-            </Button>
-          </ButtonGroup>
-        </div>
+        <DemoFilterField
+          value={filters.isDemo}
+          onChange={(value) => onFilterChange("isDemo", value)}
+        />
 
         <Separator />
 
@@ -208,26 +123,10 @@ export function ChartFilterPanel({
 
         <Separator />
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium">Positive Reviews</p>
-            <span className="text-xs text-muted-foreground">
-              {percentMin}% - {percentMax}%
-            </span>
-          </div>
-          <Slider
-            min={PERCENT_POSITIVE_MIN}
-            max={PERCENT_POSITIVE_MAX}
-            step={1}
-            value={filters.percentPositive}
-            onValueChange={(value) =>
-              onFilterChange(
-                "percentPositive",
-                value as ChartFilters["percentPositive"],
-              )
-            }
-          />
-        </div>
+        <PercentPositiveField
+          value={filters.percentPositive}
+          onChange={(value) => onFilterChange("percentPositive", value)}
+        />
 
         <Separator />
 

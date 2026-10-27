@@ -52,8 +52,9 @@ export const bulkUpsertUnnest = async (
 	return res.rows;
 };
 
+// Steam sends 0 for an unknown date, which would otherwise be stored as 1970
 export const unixToTimestamp = (value: number | null | undefined) =>
-	value == null ? null : new Date(value * 1000);
+	!value ? null : new Date(value * 1000);
 
 export const chunkArray = <T>(array: T[], size: number): T[][] => {
 	const chunks = [];

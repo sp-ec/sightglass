@@ -24,6 +24,9 @@ export const getGamesList = async (req: Request, res: Response) => {
 		const result = await fetchGamesList(
 			req.query.page as string | undefined,
 			req.query.search as string | undefined,
+			req.query.filters as string | undefined,
+			req.query.sort as string | undefined,
+			req.query.order as string | undefined,
 		);
 		return res.status(200).json(result);
 	} catch (error) {

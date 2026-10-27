@@ -15,6 +15,9 @@ import {
 	gameListEntry,
 	gameListResponse,
 	GAMES_PAGE_SIZE,
+	GAMES_LIST_SORTS,
+	gameListSort,
+	sortOrder,
 	chartAggregationMode,
 	chartFilters,
 	chartFilterMode,
@@ -78,20 +81,35 @@ export const searchGamesByTitle = async (query: string) => {
 	return await findGameByTitle(query);
 };
 
-// Page and search come straight off the query string, so both are clamped here
+// Every param comes straight off the query string, so each is validated here
 export const fetchGamesList = async (
 	rawPage: string | undefined,
 	rawSearch: string | undefined,
+	rawFilters: string | undefined,
+	rawSort: string | undefined,
+	rawOrder: string | undefined,
 ): Promise<gameListResponse> => {
 	const parsedPage = Number(rawPage);
 	const page =
 		Number.isFinite(parsedPage) && parsedPage > 0 ? Math.floor(parsedPage) : 1;
 
 	const search = rawSearch?.trim() ? rawSearch.trim() : null;
+	const filters = parseChartFilters(rawFilters);
+	const sort = GAMES_LIST_SORTS.includes(rawSort as gameListSort)
+		? (rawSort as gameListSort)
+		: "relevance";
+	const order: sortOrder = rawOrder === "asc" ? "asc" : "desc";
 
 	const [rows, total] = await Promise.all([
-		findGamesList(search, GAMES_PAGE_SIZE, (page - 1) * GAMES_PAGE_SIZE),
-		countGamesList(search),
+		findGamesList(
+			search,
+			filters,
+			sort,
+			order,
+			GAMES_PAGE_SIZE,
+			(page - 1) * GAMES_PAGE_SIZE,
+		),
+		countGamesList(search, filters),
 	]);
 
 	const games: gameListEntry[] = rows.map((row) => ({
@@ -108,10 +126,16 @@ export const fetchGamesList = async (
 			row.asset_url_format && row.small_capsule
 				? formatAssetUrl(row.asset_url_format, row.small_capsule)
 				: null,
+		header:
+			row.asset_url_format && row.header
+				? formatAssetUrl(row.asset_url_format, row.header)
+				: null,
 		review_count: row.review_count,
 		percent_positive: row.percent_positive,
 		review_score: row.review_score,
 		review_score_label: row.review_score_label,
+		steam_release_date: row.steam_release_date,
+		price_in_cents: row.price_in_cents,
 		tags: row.tags ?? [],
 		is_demo: row.type === 1,
 	}));

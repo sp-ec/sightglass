@@ -1,12 +1,20 @@
 "use client";
 
+import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ImageOff, ThumbsDown, ThumbsUp, Meh, InfoIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { formatCount } from "@/lib/utils";
+import { formatCount, formatPrice } from "@/lib/utils";
 import type { GameListEntry } from "../games-list-types";
+
+const formatReleaseDate = (value: string): string =>
+	new Date(value).toLocaleDateString(undefined, {
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+	});
 
 // Indexed by review_score, matching game-review-summary.tsx
 const reviewTone = [
@@ -27,6 +35,14 @@ export function GameListRow({ game }: { game: GameListEntry }) {
 	const ToneIcon = tone.icon;
 	const hasReviews = (game.review_count ?? 0) > 0;
 
+	// Steam does not ship every capsule, so a missing or broken main capsule
+	// falls back to the header before the placeholder
+	const [failedSrcs, setFailedSrcs] = React.useState<string[]>([]);
+	const capsule =
+		[game.main_capsule, game.header].find(
+			(src): src is string => !!src && !failedSrcs.includes(src),
+		) ?? null;
+
 	return (
 		<Card className="p-0 transition-colors hover:border-sky-500/60">
 			<Link
@@ -34,13 +50,17 @@ export function GameListRow({ game }: { game: GameListEntry }) {
 				className="flex flex-col gap-4 p-4 sm:flex-row"
 			>
 				<div className="relative w-full shrink-0 overflow-hidden rounded-lg bg-muted sm:w-[231px]">
-					{game.main_capsule ? (
+					{capsule ? (
 						<Image
-							src={game.main_capsule}
+							key={capsule}
+							src={capsule}
 							alt=""
 							fill
 							sizes="231px"
 							className="object-cover"
+							onError={() =>
+								setFailedSrcs((current) => [...current, capsule])
+							}
 						/>
 					) : (
 						<div className="flex h-full w-full items-center justify-center text-muted-foreground">
@@ -78,6 +98,18 @@ export function GameListRow({ game }: { game: GameListEntry }) {
 							<span className={`flex items-center gap-1.5 ${tone.text}`}>
 								<ToneIcon className="size-4" />
 								{game.percent_positive}% positive
+							</span>
+						)}
+						<span className="text-muted-foreground">
+							{game.steam_release_date
+								? formatReleaseDate(game.steam_release_date)
+								: "Unknown"}
+						</span>
+						{game.price_in_cents != null && (
+							<span className="font-medium">
+								{game.price_in_cents > 0
+									? formatPrice(game.price_in_cents)
+									: "Free"}
 							</span>
 						)}
 					</div>

@@ -4,12 +4,30 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { GameListRow } from "./_components/game-list-row";
+import { GamesFilterPanel } from "./_components/games-filter-panel";
 import { GamesPagination } from "./_components/games-pagination";
+import { useFilterOptions } from "./_hooks/use-filter-options";
 import { useGamesList } from "./_hooks/use-games-list";
 
 export default function BrowsePage() {
-	const { data, loading, error, search, page, setSearch, setPage } =
-		useGamesList();
+	const {
+		data,
+		loading,
+		error,
+		search,
+		filters,
+		activeFilterCount,
+		sort,
+		order,
+		setSearch,
+		setPage,
+		setFilter,
+		resetFilters,
+		setSort,
+		setOrder,
+	} = useGamesList();
+	const { tagOptions, languageOptions, error: optionsError } =
+		useFilterOptions();
 
 	const changePage = (next: number) => {
 		setPage(next);
@@ -29,9 +47,22 @@ export default function BrowsePage() {
 				/>
 			</div>
 
-			{error && (
+			<GamesFilterPanel
+				filters={filters}
+				activeFilterCount={activeFilterCount}
+				tagOptions={tagOptions}
+				languageOptions={languageOptions}
+				sort={sort}
+				order={order}
+				onFilterChange={setFilter}
+				onReset={resetFilters}
+				onSortChange={setSort}
+				onOrderChange={setOrder}
+			/>
+
+			{(error || optionsError) && (
 				<p role="alert" className="text-sm text-destructive">
-					{error}
+					{error ?? optionsError}
 				</p>
 			)}
 
@@ -45,7 +76,9 @@ export default function BrowsePage() {
 				</div>
 			) : data && data.games.length === 0 ? (
 				<p className="py-12 text-center text-sm text-muted-foreground">
-					No games match “{search}”.
+					{search.trim()
+						? `No games match “${search.trim()}”${activeFilterCount > 0 ? " with these filters" : ""}.`
+						: "No games match these filters."}
 				</p>
 			) : (
 				<div
