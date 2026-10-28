@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/sidebar";
 import {
 	Gamepad2,
+	Code,
 	CloudSync,
 	ChartPie,
 	LayoutDashboard,
@@ -49,6 +50,11 @@ const data = {
 			name: "Publisher List",
 			url: "/publishers",
 			icon: BriefcaseBusiness,
+		},
+		{
+			name: "Developer List",
+			url: "/developers",
+			icon: Code,
 		},
 		// {
 		// 	name: "Developers & Publishers",

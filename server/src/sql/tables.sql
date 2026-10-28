@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS game_developers (
 -- would otherwise scan the whole join table once per company
 CREATE INDEX IF NOT EXISTS game_developers_developer_id_idx ON game_developers (developer_id);
 
+CREATE INDEX IF NOT EXISTS developers_name_trgm_idx ON developers USING GIN (name gin_trgm_ops);
+
 CREATE TABLE IF NOT EXISTS publishers (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) UNIQUE NOT NULL,
@@ -184,6 +186,16 @@ CREATE TABLE IF NOT EXISTS game_estimates (
 -- has no row.
 CREATE TABLE IF NOT EXISTS publisher_estimates (
     publisher_id INTEGER PRIMARY KEY,
+    games_published INTEGER NOT NULL,
+    total_revenue_in_cents DOUBLE PRECISION NOT NULL,
+    median_revenue_in_cents DOUBLE PRECISION NOT NULL,
+    average_revenue_in_cents DOUBLE PRECISION NOT NULL
+);
+
+-- The same rollup per developer. games_published keeps the publisher column's
+-- name so both tables are read by the same queries.
+CREATE TABLE IF NOT EXISTS developer_estimates (
+    developer_id INTEGER PRIMARY KEY,
     games_published INTEGER NOT NULL,
     total_revenue_in_cents DOUBLE PRECISION NOT NULL,
     median_revenue_in_cents DOUBLE PRECISION NOT NULL,

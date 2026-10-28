@@ -32,6 +32,7 @@ const routeTitles: Record<string, string> = {
 	"/dashboard": "Dashboard",
 	"/browse": "Games List",
 	"/publishers": "Publisher List",
+	"/developers": "Developer List",
 	"/settings": "Settings",
 	"/chart": "Chart Creator",
 	"/admin/sync": "Sync Steam Data",
@@ -43,6 +44,7 @@ const routeTitles: Record<string, string> = {
 const routeTitlePrefixes: [string, string][] = [
 	["/games/", "Game Details"],
 	["/publishers/", "Publisher Details"],
+	["/developers/", "Developer Details"],
 ];
 
 const titleForPath = (pathname: string): string => {
