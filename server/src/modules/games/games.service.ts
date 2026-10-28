@@ -36,7 +36,7 @@ import { estimateGame } from "@/modules/appSettings/estimation";
 
 // Steam does not ship every asset for every game, and a missing filename would
 // otherwise be stringified into the URL as "null" and 404
-function formatAssetUrl(
+export function formatAssetUrl(
 	url: string | null,
 	filename: string | null,
 ): string | null {

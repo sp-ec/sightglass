@@ -34,3 +34,13 @@ export type SyncOutcome = {
     status: "started" | "running" | "stopped" | "idle" | "misconfigured";
     message: string;
 };
+
+// Fixed pairs, so no caller-supplied name reaches the merge SQL
+export type companyTable =
+    | { table: "developers"; joinTable: "game_developers"; fkColumn: "developer_id" }
+    | { table: "publishers"; joinTable: "game_publishers"; fkColumn: "publisher_id" };
+
+export type companyMergeResult = {
+    merged: number;
+    updated: number;
+};

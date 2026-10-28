@@ -5,8 +5,47 @@ import {
 	unixToTimestamp,
 	chunkArray,
 } from "@/sql/dbUtils";
+import {
+	cleanCompanyName,
+	companyNameKey,
+} from "@/modules/sync/companyNames";
+import { companyMergeResult, companyTable } from "./sync.types";
 
 const CHUNK_SIZE = 500;
+
+// Keyed by companyNameKey so two spellings in one chunk become one insert row;
+// otherwise the upsert would hit the same row twice and Postgres rejects that
+const addCompanyName = (
+	names: Map<string, string>,
+	name: string | null | undefined,
+) => {
+	if (!name) return;
+	const key = companyNameKey(name);
+	if (key && !names.has(key)) {
+		names.set(key, cleanCompanyName(name));
+	}
+};
+
+// Returns the id for each name key. The no-op update makes RETURNING include
+// rows that already exist, and leaves their stored name alone so it does not
+// change with whichever spelling synced last.
+const upsertCompanies = async (
+	table: companyTable["table"],
+	names: Map<string, string>,
+): Promise<Map<string, number>> => {
+	const ids = new Map<string, number>();
+	if (names.size === 0) return ids;
+
+	const rows = await bulkUpsert(
+		table,
+		["name", "name_key"],
+		Array.from(names, ([key, name]) => [name, key]),
+		"ON CONFLICT (name_key) DO UPDATE SET name_key = EXCLUDED.name_key RETURNING id, name_key",
+	);
+	for (const row of rows) ids.set(row.name_key, row.id);
+
+	return ids;
+};
 
 const cleanUpRelations = async (
 	table: string,
@@ -64,8 +103,8 @@ export const saveSteamGames = async (storeItems: any[]) => {
 		const reviewsMap = new Map<number, any[]>();
 		const assetsMap = new Map<number, any[]>();
 		const platformsMap = new Map<number, any[]>();
-		const uniqueDevs = new Set<string>();
-		const uniquePubs = new Set<string>();
+		const uniqueDevs = new Map<string, string>();
+		const uniquePubs = new Map<string, string>();
 
 		for (const item of chunk) {
 			const appId = item.appid ?? item.id;
@@ -125,10 +164,10 @@ export const saveSteamGames = async (storeItems: any[]) => {
 			]);
 
 			for (const dev of item.basic_info?.developers ?? []) {
-				if (dev.name) uniqueDevs.add(dev.name);
+				addCompanyName(uniqueDevs, dev.name);
 			}
 			for (const pub of item.basic_info?.publishers ?? []) {
-				if (pub.name) uniquePubs.add(pub.name);
+				addCompanyName(uniquePubs, pub.name);
 			}
 		}
 
@@ -230,27 +269,8 @@ export const saveSteamGames = async (storeItems: any[]) => {
 			steam_os_compat_category = EXCLUDED.steam_os_compat_category`,
 		);
 
-		const devMap = new Map<string, number>();
-		if (uniqueDevs.size > 0) {
-			const devRows = await bulkUpsert(
-				"developers",
-				["name"],
-				Array.from(uniqueDevs).map((name) => [name]),
-				"ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id, name",
-			);
-			for (const row of devRows) devMap.set(row.name, row.id);
-		}
-
-		const pubMap = new Map<string, number>();
-		if (uniquePubs.size > 0) {
-			const pubRows = await bulkUpsert(
-				"publishers",
-				["name"],
-				Array.from(uniquePubs).map((name) => [name]),
-				"ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id, name",
-			);
-			for (const row of pubRows) pubMap.set(row.name, row.id);
-		}
+		const devMap = await upsertCompanies("developers", uniqueDevs);
+		const pubMap = await upsertCompanies("publishers", uniquePubs);
 
 		const devPairsMap = new Map<string, any[]>();
 		const pubPairsMap = new Map<string, any[]>();
@@ -261,21 +281,19 @@ export const saveSteamGames = async (storeItems: any[]) => {
 		for (const item of chunk) {
 			const appId = item.appid ?? item.id;
 
+			// Variants of one company resolve to the same id, so the pair key
+			// keeps a game listing "Aspyr (Mac)" and "Aspyr (Linux)" to one row
 			for (const dev of item.basic_info?.developers ?? []) {
-				if (dev.name && devMap.has(dev.name)) {
-					devPairsMap.set(`${appId}_${devMap.get(dev.name)}`, [
-						appId,
-						devMap.get(dev.name),
-					]);
+				const devId = dev.name ? devMap.get(companyNameKey(dev.name)) : undefined;
+				if (devId !== undefined) {
+					devPairsMap.set(`${appId}_${devId}`, [appId, devId]);
 				}
 			}
 
 			for (const pub of item.basic_info?.publishers ?? []) {
-				if (pub.name && pubMap.has(pub.name)) {
-					pubPairsMap.set(`${appId}_${pubMap.get(pub.name)}`, [
-						appId,
-						pubMap.get(pub.name),
-					]);
+				const pubId = pub.name ? pubMap.get(companyNameKey(pub.name)) : undefined;
+				if (pubId !== undefined) {
+					pubPairsMap.set(`${appId}_${pubId}`, [appId, pubId]);
 				}
 			}
 
@@ -465,4 +483,134 @@ export const upsertCategories = async (
 
 	const result = await backgroundPool.query(query, values);
 	return result.rows[0];
+};
+
+type companyRow = {
+	id: number;
+	name: string;
+	name_key: string | null;
+	games: number;
+};
+
+type companyMergePlan = {
+	loserIds: number[];
+	// Parallel to loserIds
+	survivorIds: number[];
+	deleteIds: number[];
+	updates: { id: number; name: string; key: string }[];
+};
+
+// Each key keeps the row with the most games, ties to the lowest id. Rows
+// whose name has no key (" ", "...") are deleted along with their links.
+const planCompanyMerge = (rows: companyRow[]): companyMergePlan => {
+	const plan: companyMergePlan = {
+		loserIds: [],
+		survivorIds: [],
+		deleteIds: [],
+		updates: [],
+	};
+	const groups = new Map<string, companyRow[]>();
+
+	for (const row of rows) {
+		const key = companyNameKey(row.name);
+		if (!key) {
+			plan.deleteIds.push(row.id);
+			continue;
+		}
+		groups.set(key, [...(groups.get(key) ?? []), row]);
+	}
+
+	for (const [key, group] of groups) {
+		group.sort((a, b) => b.games - a.games || a.id - b.id);
+		const [survivor, ...losers] = group;
+
+		for (const loser of losers) {
+			plan.loserIds.push(loser.id);
+			plan.survivorIds.push(survivor.id);
+			plan.deleteIds.push(loser.id);
+		}
+
+		const name = cleanCompanyName(survivor.name);
+		if (name !== survivor.name || key !== survivor.name_key) {
+			plan.updates.push({ id: survivor.id, name, key });
+		}
+	}
+
+	return plan;
+};
+
+// Folds every spelling of a company into one row and fills name_key. Runs at
+// boot, so rows from before name_key existed, or from older matching rules, are
+// merged under the current rules. Reads only when there is nothing to change.
+export const mergeDuplicateCompanies = async ({
+	table,
+	joinTable,
+	fkColumn,
+}: companyTable): Promise<companyMergeResult> => {
+	const client = await backgroundPool.connect();
+
+	try {
+		await client.query("BEGIN");
+		// Blocks another instance's sync from linking a row about to be deleted
+		await client.query(
+			`LOCK TABLE ${table}, ${joinTable} IN SHARE ROW EXCLUSIVE MODE;`,
+		);
+
+		const result = await client.query(
+			`SELECT ${table}.id, ${table}.name, ${table}.name_key, COUNT(${joinTable}.game_id)::int AS games
+			FROM ${table}
+			LEFT JOIN ${joinTable} ON ${joinTable}.${fkColumn} = ${table}.id
+			GROUP BY ${table}.id;`,
+		);
+		const plan = planCompanyMerge(result.rows as companyRow[]);
+
+		if (plan.loserIds.length > 0) {
+			await client.query(
+				`INSERT INTO ${joinTable} (game_id, ${fkColumn})
+				SELECT ${joinTable}.game_id, merge.survivor_id
+				FROM ${joinTable}
+				JOIN unnest($1::int[], $2::int[]) AS merge(loser_id, survivor_id)
+					ON ${joinTable}.${fkColumn} = merge.loser_id
+				ON CONFLICT DO NOTHING;`,
+				[plan.loserIds, plan.survivorIds],
+			);
+		}
+
+		// Cascades the deleted rows' links, and frees their names and keys
+		// before the survivors take them
+		if (plan.deleteIds.length > 0) {
+			await client.query(`DELETE FROM ${table} WHERE id = ANY($1::int[]);`, [
+				plan.deleteIds,
+			]);
+		}
+
+		if (plan.updates.length > 0) {
+			const ids = plan.updates.map((update) => update.id);
+			// Unique checks run row by row, so two rows trading keys under
+			// changed rules would collide without clearing them first
+			await client.query(
+				`UPDATE ${table} SET name_key = NULL WHERE id = ANY($1::int[]);`,
+				[ids],
+			);
+			await client.query(
+				`UPDATE ${table}
+				SET name = renamed.name, name_key = renamed.name_key
+				FROM unnest($1::int[], $2::text[], $3::text[]) AS renamed(id, name, name_key)
+				WHERE ${table}.id = renamed.id;`,
+				[
+					ids,
+					plan.updates.map((update) => update.name),
+					plan.updates.map((update) => update.key),
+				],
+			);
+		}
+
+		await client.query("COMMIT");
+		return { merged: plan.deleteIds.length, updated: plan.updates.length };
+	} catch (error) {
+		await client.query("ROLLBACK");
+		throw error;
+	} finally {
+		client.release();
+	}
 };

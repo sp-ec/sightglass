@@ -1,55 +1,9 @@
 "use client";
 
-import { InfoIcon, Meh, ThumbsDown, ThumbsUp } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { QuestionTooltip } from "@/components/util/question-tooltip";
+import { StatTile as Tile } from "@/components/util/stat-tile";
+import { toneForScore } from "@/components/util/review-tone";
 import { formatCents, formatCount } from "@/lib/utils";
 import type { GameEstimate, GameReviews } from "../game-detail-types";
-
-// Indexed by Steam's review_score, 0 through 9
-const reviewTone = [
-	{ text: "text-muted-foreground", icon: InfoIcon },
-	{ text: "text-red-400", icon: ThumbsDown },
-	{ text: "text-red-400", icon: ThumbsDown },
-	{ text: "text-red-400", icon: ThumbsDown },
-	{ text: "text-red-400", icon: ThumbsDown },
-	{ text: "text-yellow-400", icon: Meh },
-	{ text: "text-lime-400", icon: ThumbsUp },
-	{ text: "text-lime-400", icon: ThumbsUp },
-	{ text: "text-green-400", icon: ThumbsUp },
-	{ text: "text-green-400", icon: ThumbsUp },
-];
-
-function Tile({
-	label,
-	value,
-	sub,
-	tooltip,
-	className,
-}: {
-	label: string;
-	value: string;
-	sub?: React.ReactNode;
-	tooltip?: string;
-	className?: string;
-}) {
-	return (
-		<Card className="gap-0 py-4">
-			<CardContent className="px-4">
-				<p className="flex flex-row items-center gap-1 text-sm text-muted-foreground">
-					{label}
-					{tooltip && <QuestionTooltip message={tooltip} />}
-				</p>
-				<p className={`mt-1 text-2xl font-semibold ${className ?? ""}`}>
-					{value}
-				</p>
-				{sub && (
-					<div className="mt-1 text-sm text-muted-foreground">{sub}</div>
-				)}
-			</CardContent>
-		</Card>
-	);
-}
 
 interface Props {
 	reviews: GameReviews;
@@ -59,7 +13,7 @@ interface Props {
 
 export function GameStats({ reviews, estimate, priceInCents }: Props) {
 	const isFree = !priceInCents || priceInCents <= 0;
-	const tone = reviewTone[reviews?.review_score ?? 0] ?? reviewTone[0];
+	const tone = toneForScore(reviews?.review_score);
 	const ToneIcon = tone.icon;
 
 	return (

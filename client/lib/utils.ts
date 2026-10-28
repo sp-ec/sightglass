@@ -37,6 +37,15 @@ export function formatPrice(value: number): string {
 	return Number.isFinite(value) ? priceFormatter.format(value / 100) : "—";
 }
 
+// ISO timestamp to a short local date: Mar 4, 2024
+export function formatReleaseDate(value: string): string {
+	return new Date(value).toLocaleDateString(undefined, {
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+	});
+}
+
 export function formatAssetUrl(url: string, filename: string): string {
 	const formattedUrl =
 		"https://shared.akamai.steamstatic.com/store_item_assets/" + url;

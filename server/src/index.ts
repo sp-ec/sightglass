@@ -9,6 +9,7 @@ import {
 	ensureDefaultTagMultipliers,
 	refreshGameEstimates,
 } from "./modules/appSettings/appSettings.service";
+import { mergeDuplicateCompanyNames } from "./modules/sync/sync.service";
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -30,6 +31,8 @@ const startServer = async () => {
 	// Claims the seed as done as soon as tags exist, so that deleting every tag
 	// multiplier is permanent rather than undone by the seed in tables.sql
 	await ensureDefaultTagMultipliers();
+	// Before the estimates rebuild, so publisher_estimates rolls up merged rows
+	await mergeDuplicateCompanyNames();
 	// Catches up on anything the table missed while the server was down, such
 	// as a settings change from another instance or a release-date drift
 	await refreshGameEstimates();

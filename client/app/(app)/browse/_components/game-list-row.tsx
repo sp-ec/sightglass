@@ -3,35 +3,15 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ImageOff, ThumbsDown, ThumbsUp, Meh, InfoIcon } from "lucide-react";
+import { ImageOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { formatCount, formatPrice } from "@/lib/utils";
+import { toneForScore } from "@/components/util/review-tone";
+import { formatCount, formatPrice, formatReleaseDate } from "@/lib/utils";
 import type { GameListEntry } from "../games-list-types";
 
-const formatReleaseDate = (value: string): string =>
-	new Date(value).toLocaleDateString(undefined, {
-		year: "numeric",
-		month: "short",
-		day: "numeric",
-	});
-
-// Indexed by review_score, matching game-review-summary.tsx
-const reviewTone = [
-	{ text: "text-muted-foreground", icon: InfoIcon },
-	{ text: "text-red-400", icon: ThumbsDown },
-	{ text: "text-red-400", icon: ThumbsDown },
-	{ text: "text-red-400", icon: ThumbsDown },
-	{ text: "text-red-400", icon: ThumbsDown },
-	{ text: "text-yellow-400", icon: Meh },
-	{ text: "text-lime-400", icon: ThumbsUp },
-	{ text: "text-lime-400", icon: ThumbsUp },
-	{ text: "text-green-400", icon: ThumbsUp },
-	{ text: "text-green-400", icon: ThumbsUp },
-];
-
 export function GameListRow({ game }: { game: GameListEntry }) {
-	const tone = reviewTone[game.review_score ?? 0] ?? reviewTone[0];
+	const tone = toneForScore(game.review_score);
 	const ToneIcon = tone.icon;
 	const hasReviews = (game.review_count ?? 0) > 0;
 

@@ -40,7 +40,10 @@ const routeTitles: Record<string, string> = {
 };
 
 // Dynamic routes cannot be matched exactly, so they fall back to a prefix
-const routeTitlePrefixes: [string, string][] = [["/games/", "Game Details"]];
+const routeTitlePrefixes: [string, string][] = [
+	["/games/", "Game Details"],
+	["/publishers/", "Publisher Details"],
+];
 
 const titleForPath = (pathname: string): string => {
 	if (routeTitles[pathname]) {

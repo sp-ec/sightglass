@@ -10,6 +10,8 @@ interface Props {
 	total: number;
 	disabled: boolean;
 	onPageChange: (page: number) => void;
+	// Singular and plural label for the counted items
+	noun?: [string, string];
 }
 
 export function PublishersPagination({
@@ -18,12 +20,13 @@ export function PublishersPagination({
 	total,
 	disabled,
 	onPageChange,
+	noun = ["publisher", "publishers"],
 }: Props) {
 	return (
 		<div className="flex flex-wrap items-center justify-between gap-4">
 			<p className="text-sm text-muted-foreground">
 				Page {formatCount(page)} of {formatCount(totalPages)} ·{" "}
-				{formatCount(total)} {total === 1 ? "publisher" : "publishers"}
+				{formatCount(total)} {total === 1 ? noun[0] : noun[1]}
 			</p>
 			<div className="flex items-center gap-2">
 				<Button

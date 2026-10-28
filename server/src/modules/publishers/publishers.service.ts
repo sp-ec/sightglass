@@ -1,15 +1,22 @@
 import {
 	findPublishersList,
 	countPublishersList,
+	findPublisherSummary,
+	findPublisherTagCounts,
+	findPublisherGames,
 } from "./publishers.repository";
 import {
+	publisherDetailResponse,
 	publisherListFilters,
 	publisherListResponse,
 	publisherListSort,
 	PUBLISHERS_LIST_SORTS,
 	PUBLISHERS_PAGE_SIZE,
 } from "./publishers.types";
-import { parseNumericRange } from "@/modules/games/games.service";
+import {
+	formatAssetUrl,
+	parseNumericRange,
+} from "@/modules/games/games.service";
 import { sortOrder } from "@/modules/games/games.types";
 
 const parsePublisherFilters = (
@@ -77,4 +84,37 @@ export const fetchPublishersList = async (
 		page_size: PUBLISHERS_PAGE_SIZE,
 		total_pages: Math.max(1, Math.ceil(total / PUBLISHERS_PAGE_SIZE)),
 	};
+};
+
+export const fetchPublisherById = async (
+	rawPublisherId: string | undefined,
+): Promise<publisherDetailResponse | null> => {
+	// Postgres rejects an id that is not a positive int4 with an error rather
+	// than an empty result, so those read as not found here
+	const publisherId = Number(rawPublisherId);
+	if (
+		!rawPublisherId ||
+		!Number.isInteger(publisherId) ||
+		publisherId <= 0 ||
+		publisherId > 2_147_483_647
+	) {
+		return null;
+	}
+
+	const [publisher, tags, rows] = await Promise.all([
+		findPublisherSummary(publisherId),
+		findPublisherTagCounts(publisherId),
+		findPublisherGames(publisherId),
+	]);
+	if (!publisher) {
+		return null;
+	}
+
+	const games = rows.map(({ asset_url_format, ...row }) => ({
+		...row,
+		small_capsule: formatAssetUrl(asset_url_format, row.small_capsule),
+		header: formatAssetUrl(asset_url_format, row.header),
+	}));
+
+	return { publisher, tags, games };
 };

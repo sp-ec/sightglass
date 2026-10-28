@@ -6,9 +6,10 @@ import {
 	getNewestGame,
 	upsertTags,
 	upsertCategories,
+	mergeDuplicateCompanies,
 } from "./sync.repository";
 
-import { SteamQueryResponse, SyncOutcome } from "./sync.types";
+import { companyTable, SteamQueryResponse, SyncOutcome } from "./sync.types";
 import {
 	ensureDefaultTagMultipliers,
 	getSteamApiKey,
@@ -180,4 +181,20 @@ export const syncCategories = async () => {
 	await upsertCategories(data);
 
 	return { message: "Game categories fetched and upserted" };
+};
+
+const COMPANY_TABLES: companyTable[] = [
+	{ table: "developers", joinTable: "game_developers", fkColumn: "developer_id" },
+	{ table: "publishers", joinTable: "game_publishers", fkColumn: "publisher_id" },
+];
+
+// Must finish before any sync: the sync matches companies on name_key, and a
+// row still missing its key would collide with the incoming row on name instead
+export const mergeDuplicateCompanyNames = async (): Promise<void> => {
+	for (const companies of COMPANY_TABLES) {
+		const { merged } = await mergeDuplicateCompanies(companies);
+		if (merged > 0) {
+			console.log(`Merged ${merged} duplicate ${companies.table}.`);
+		}
+	}
 };

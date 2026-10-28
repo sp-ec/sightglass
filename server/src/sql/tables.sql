@@ -18,9 +18,12 @@ CREATE INDEX IF NOT EXISTS games_name_trgm_idx ON games USING GIN (name gin_trgm
 -- Demo lookups by parent. Partial because only demos set parent_app_id.
 CREATE INDEX IF NOT EXISTS games_parent_app_id_idx ON games (parent_app_id) WHERE parent_app_id IS NOT NULL;
 
+-- name_key is the normalized name every sync matches on (companyNames.ts). It
+-- is NULL only until the boot-time merge fills it, which a unique index allows.
 CREATE TABLE IF NOT EXISTS developers (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(255) UNIQUE NOT NULL
+    name VARCHAR(255) UNIQUE NOT NULL,
+    name_key TEXT
 );
 
 CREATE TABLE IF NOT EXISTS game_developers (
@@ -29,9 +32,15 @@ CREATE TABLE IF NOT EXISTS game_developers (
     PRIMARY KEY (game_id, developer_id)
 );
 
+-- The primary key leads with game_id, so lookups by company (the publisher
+-- list, and the ON DELETE CASCADE when a duplicate company is merged away)
+-- would otherwise scan the whole join table once per company
+CREATE INDEX IF NOT EXISTS game_developers_developer_id_idx ON game_developers (developer_id);
+
 CREATE TABLE IF NOT EXISTS publishers (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(255) UNIQUE NOT NULL
+    name VARCHAR(255) UNIQUE NOT NULL,
+    name_key TEXT
 );
 
 CREATE INDEX IF NOT EXISTS publishers_name_trgm_idx ON publishers USING GIN (name gin_trgm_ops);
@@ -41,6 +50,8 @@ CREATE TABLE IF NOT EXISTS game_publishers (
     publisher_id INTEGER REFERENCES publishers(id) ON DELETE CASCADE,
     PRIMARY KEY (game_id, publisher_id)
 );
+
+CREATE INDEX IF NOT EXISTS game_publishers_publisher_id_idx ON game_publishers (publisher_id);
 
 CREATE TABLE IF NOT EXISTS tags (
     id SERIAL PRIMARY KEY,
@@ -330,3 +341,10 @@ ON CONFLICT (tag_id) DO NOTHING;
 -- AND here (for existing ones). ADD COLUMN IF NOT EXISTS is idempotent, so this
 -- section is safe to re-run on every boot. Example:
 -- ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS foo DOUBLE PRECISION NOT NULL DEFAULT 1;
+
+ALTER TABLE developers ADD COLUMN IF NOT EXISTS name_key TEXT;
+ALTER TABLE publishers ADD COLUMN IF NOT EXISTS name_key TEXT;
+
+-- Created here rather than beside the tables so the column exists first
+CREATE UNIQUE INDEX IF NOT EXISTS developers_name_key_idx ON developers (name_key);
+CREATE UNIQUE INDEX IF NOT EXISTS publishers_name_key_idx ON publishers (name_key);

@@ -33,7 +33,7 @@ export function PublishersTable({
 					<TableRow key={publisher.id}>
 						<TableCell className="max-w-80 truncate font-medium">
 							<Link
-								href={`/publisher/${publisher.id}`}
+								href={`/publishers/${publisher.id}`}
 								className="hover:text-sky-500 hover:underline"
 								title={publisher.name}
 							>

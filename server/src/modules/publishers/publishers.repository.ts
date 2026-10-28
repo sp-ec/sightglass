@@ -1,10 +1,17 @@
 import pool from "@/sql/db";
 import {
+	publisherGameRow,
 	publisherListEntry,
 	publisherListFilters,
 	publisherListSort,
+	publisherSummary,
+	publisherTagCount,
 } from "./publishers.types";
 import { sortOrder } from "@/modules/games/games.types";
+import {
+	LIST_RELEASE_DATE_SQL,
+	topTagNamesLateralSql,
+} from "@/modules/games/games.repository";
 
 type listWhereSql = {
 	whereSql: string;
@@ -119,4 +126,100 @@ export const countPublishersList = async (
 	);
 
 	return (result.rows[0]?.count as number) ?? 0;
+};
+
+// Left join so a publisher with no estimate row still loads, with null stats
+export const findPublisherSummary = async (
+	publisherId: number,
+): Promise<publisherSummary | null> => {
+	const result = await pool.query(
+		`SELECT
+			publishers.id,
+			publishers.name,
+			publisher_estimates.games_published,
+			publisher_estimates.total_revenue_in_cents,
+			publisher_estimates.median_revenue_in_cents,
+			publisher_estimates.average_revenue_in_cents
+		FROM publishers
+		LEFT JOIN publisher_estimates ON publisher_estimates.publisher_id = publishers.id
+		WHERE publishers.id = $1;`,
+		[publisherId],
+	);
+
+	return (result.rows[0] as publisherSummary) ?? null;
+};
+
+const PUBLISHER_GAMES_FROM_SQL = `FROM game_publishers
+	JOIN games ON games.app_id = game_publishers.game_id`;
+
+// Demos are left out, matching the publisher_estimates rollup
+const PUBLISHER_GAMES_WHERE_SQL = `WHERE game_publishers.publisher_id = $1
+	AND (games.type IS NULL OR games.type <> 1)`;
+
+export const findPublisherTagCounts = async (
+	publisherId: number,
+): Promise<publisherTagCount[]> => {
+	const result = await pool.query(
+		`SELECT tags.id, tags.name, COUNT(*)::int AS game_count
+		${PUBLISHER_GAMES_FROM_SQL}
+		JOIN game_tags ON game_tags.game_id = games.app_id
+		JOIN tags ON tags.id = game_tags.tag_id
+		${PUBLISHER_GAMES_WHERE_SQL}
+		GROUP BY tags.id, tags.name
+		ORDER BY game_count DESC, tags.name ASC;`,
+		[publisherId],
+	);
+
+	return result.rows as publisherTagCount[];
+};
+
+// A game's developers or publishers as a JSON array of { id, name }
+const companiesLateralSql = (
+	linkTable: string,
+	companyTable: string,
+	companyIdColumn: string,
+): string => `(
+			SELECT COALESCE(
+				json_agg(json_build_object('id', companies.id, 'name', companies.name) ORDER BY companies.name),
+				'[]'::json
+			) AS list
+			FROM ${linkTable} links
+			JOIN ${companyTable} companies ON companies.id = links.${companyIdColumn}
+			WHERE links.game_id = games.app_id
+		)`;
+
+// Games synced since the last estimate rebuild read NULL estimates and sort last
+export const findPublisherGames = async (
+	publisherId: number,
+): Promise<publisherGameRow[]> => {
+	const result = await pool.query(
+		`SELECT
+			games.app_id,
+			games.name,
+			${LIST_RELEASE_DATE_SQL} AS steam_release_date,
+			games.price_in_cents,
+			reviews.review_count,
+			reviews.percent_positive,
+			reviews.review_score,
+			game_assets.asset_url_format,
+			game_assets.small_capsule,
+			game_assets.header,
+			game_estimates.estimated_units,
+			game_estimates.estimated_revenue_in_cents,
+			COALESCE(top_tags.names, ARRAY[]::text[]) AS tags,
+			game_developer_list.list AS developers,
+			game_publisher_list.list AS publishers
+		${PUBLISHER_GAMES_FROM_SQL}
+		LEFT JOIN game_reviews_summary reviews ON reviews.game_id = games.app_id
+		LEFT JOIN game_assets ON game_assets.game_id = games.app_id
+		LEFT JOIN game_estimates ON game_estimates.game_id = games.app_id
+		LEFT JOIN LATERAL ${topTagNamesLateralSql("games.app_id")} ON TRUE
+		LEFT JOIN LATERAL ${companiesLateralSql("game_developers", "developers", "developer_id")} game_developer_list ON TRUE
+		LEFT JOIN LATERAL ${companiesLateralSql("game_publishers", "publishers", "publisher_id")} game_publisher_list ON TRUE
+		${PUBLISHER_GAMES_WHERE_SQL}
+		ORDER BY game_estimates.estimated_revenue_in_cents DESC NULLS LAST, games.app_id ASC;`,
+		[publisherId],
+	);
+
+	return result.rows as publisherGameRow[];
 };

@@ -104,7 +104,20 @@ const buildListWhereSql = (
 
 // Rows synced before unixToTimestamp mapped Steam's 0 to NULL hold the epoch,
 // shifted to 1969-12-31 by the sync's local timezone. Both read as unknown.
-const LIST_RELEASE_DATE_SQL = `CASE WHEN games.steam_release_date > '1970-01-01' THEN games.steam_release_date END`;
+export const LIST_RELEASE_DATE_SQL = `CASE WHEN games.steam_release_date > '1970-01-01' THEN games.steam_release_date END`;
+
+// A game's five heaviest tag names as top_tags.names, for a LEFT JOIN LATERAL
+export const topTagNamesLateralSql = (gameIdSql: string): string => `(
+			SELECT array_agg(tags.name ORDER BY ranked.weight DESC, ranked.tag_id ASC) AS names
+			FROM (
+				SELECT tag_id, weight
+				FROM game_tags
+				WHERE game_tags.game_id = ${gameIdSql}
+				ORDER BY weight DESC, tag_id ASC
+				LIMIT 5
+			) ranked
+			JOIN tags ON tags.id = ranked.tag_id
+		) top_tags`;
 
 // Sort keys map to fixed column names, so no client input reaches ORDER BY
 const LIST_SORT_COLUMNS: Record<Exclude<gameListSort, "relevance">, string> = {
@@ -184,17 +197,7 @@ export const findGamesList = async (
 			LIMIT ${limitParam} OFFSET ${offsetParam}
 		) page
 		LEFT JOIN game_assets ON game_assets.game_id = page.app_id
-		LEFT JOIN LATERAL (
-			SELECT array_agg(tags.name ORDER BY ranked.weight DESC, ranked.tag_id ASC) AS names
-			FROM (
-				SELECT tag_id, weight
-				FROM game_tags
-				WHERE game_tags.game_id = page.app_id
-				ORDER BY weight DESC, tag_id ASC
-				LIMIT 5
-			) ranked
-			JOIN tags ON tags.id = ranked.tag_id
-		) top_tags ON TRUE
+		LEFT JOIN LATERAL ${topTagNamesLateralSql("page.app_id")} ON TRUE
 		ORDER BY ${listOrderSql(sort, order, "page.")};`,
 		params,
 	);
