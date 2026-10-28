@@ -42,6 +42,11 @@ export function ChartDataDisplay({
 			<CardHeader>
 				<CardTitle className="flex flex-row gap-2 items-center">
 					{selectedYAxisLabel} vs {xAxisLabel} by {selectedGroupByLabel}{" "}
+					{sortedChartData && (
+						<span className="text-sm font-normal text-muted-foreground">
+							{sortedChartData.total_games.toLocaleString()} titles
+						</span>
+					)}
 					{loading && <UpdatingBadge />}
 				</CardTitle>
 				<CardDescription>

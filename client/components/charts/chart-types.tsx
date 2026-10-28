@@ -55,6 +55,7 @@ export type ChartResponse = {
   bucket_size: number | null;
   points: ChartPoint[];
   aggregate: "average" | "median";
+  total_games: number;
 };
 
 export type BucketConfig = {

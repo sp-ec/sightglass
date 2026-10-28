@@ -410,14 +410,22 @@ export const getChartAggregation = async (
 				)
 			: CHART_TAGS_COUNTED_DEFAULT;
 
-	let chartData = await getGameChartAggregation(
-		mode as chartAggregationMode,
-		normalizedBucketSize,
-		aggregate,
-		tagsCounted,
-		parseChartFilters(rawFilters),
-		parseChartMetrics(rawMetrics),
-	);
+	const filters = parseChartFilters(rawFilters);
+
+	// Counted separately because multi-valued modes (tags, languages, ...) put
+	// one game in several buckets, so summing bucket counts overcounts
+	const [aggregation, totalGames] = await Promise.all([
+		getGameChartAggregation(
+			mode as chartAggregationMode,
+			normalizedBucketSize,
+			aggregate,
+			tagsCounted,
+			filters,
+			parseChartMetrics(rawMetrics),
+		),
+		countGamesList(null, filters),
+	]);
+	const chartData = { ...aggregation, total_games: totalGames };
 
 	if (mode === "release_date") {
 		let chartPoints = chartData.points

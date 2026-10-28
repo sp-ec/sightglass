@@ -32,5 +32,6 @@ export const fetchGamesQuery = (start: number, apiKey: string) => {
 			include_assets: true,
 			include_supported_languages: true,
 			include_platforms: true,
+			include_optin_registration_tags: true,
 		},
 	};};
