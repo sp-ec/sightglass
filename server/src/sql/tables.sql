@@ -34,6 +34,8 @@ CREATE TABLE IF NOT EXISTS publishers (
     name VARCHAR(255) UNIQUE NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS publishers_name_trgm_idx ON publishers USING GIN (name gin_trgm_ops);
+
 CREATE TABLE IF NOT EXISTS game_publishers (
     game_id INTEGER REFERENCES games(app_id) ON DELETE CASCADE,
     publisher_id INTEGER REFERENCES publishers(id) ON DELETE CASCADE,
@@ -164,6 +166,17 @@ CREATE TABLE IF NOT EXISTS game_estimates (
     estimated_revenue_in_cents DOUBLE PRECISION NOT NULL,
     estimated_revenue_low_in_cents DOUBLE PRECISION NOT NULL,
     estimated_revenue_high_in_cents DOUBLE PRECISION NOT NULL
+);
+
+-- Rolled up from game_estimates in the same transaction that rebuilds it, so
+-- the two never disagree. Demos are left out, and a publisher with only demos
+-- has no row.
+CREATE TABLE IF NOT EXISTS publisher_estimates (
+    publisher_id INTEGER PRIMARY KEY,
+    games_published INTEGER NOT NULL,
+    total_revenue_in_cents DOUBLE PRECISION NOT NULL,
+    median_revenue_in_cents DOUBLE PRECISION NOT NULL,
+    average_revenue_in_cents DOUBLE PRECISION NOT NULL
 );
 
 -- The application is in "initialization mode" while this table is empty;

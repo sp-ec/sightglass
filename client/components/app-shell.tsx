@@ -31,6 +31,7 @@ function ThemeToggle() {
 const routeTitles: Record<string, string> = {
 	"/dashboard": "Dashboard",
 	"/browse": "Games List",
+	"/publishers": "Publisher List",
 	"/settings": "Settings",
 	"/chart": "Chart Creator",
 	"/admin/sync": "Sync Steam Data",

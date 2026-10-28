@@ -243,7 +243,9 @@ export const fetchGameById = async (rawAppId: string) => {
 	};
 };
 
-const parseNumericRange = (value: unknown): chartRangeFilter | undefined => {
+export const parseNumericRange = (
+	value: unknown,
+): chartRangeFilter | undefined => {
 	if (!value || typeof value !== "object") {
 		return undefined;
 	}

@@ -45,6 +45,11 @@ const data = {
 			url: "/browse",
 			icon: Gamepad2,
 		},
+		{
+			name: "Publisher List",
+			url: "/publishers",
+			icon: BriefcaseBusiness,
+		},
 		// {
 		// 	name: "Developers & Publishers",
 		// 	url: "/browse",

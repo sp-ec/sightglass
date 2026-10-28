@@ -218,18 +218,41 @@ export const replaceEstimationSettings = async (
 	}
 };
 
+// Demos are left out: they are free, so they would drag every median to zero
+const PUBLISHER_ESTIMATES_INSERT_SQL = `INSERT INTO publisher_estimates (
+		publisher_id,
+		games_published,
+		total_revenue_in_cents,
+		median_revenue_in_cents,
+		average_revenue_in_cents
+	)
+	SELECT
+		game_publishers.publisher_id,
+		COUNT(*)::int,
+		SUM(game_estimates.estimated_revenue_in_cents),
+		PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY game_estimates.estimated_revenue_in_cents),
+		AVG(game_estimates.estimated_revenue_in_cents)
+	FROM game_publishers
+	JOIN games ON games.app_id = game_publishers.game_id
+	JOIN game_estimates ON game_estimates.game_id = game_publishers.game_id
+	WHERE games.type IS NULL OR games.type <> 1
+	GROUP BY game_publishers.publisher_id;`;
+
 // Delete-and-insert in one transaction rather than TRUNCATE: TRUNCATE's
 // exclusive lock would stall every chart query for the length of the rebuild,
 // whereas this way readers keep seeing the previous rows until COMMIT.
 // SHARE ROW EXCLUSIVE conflicts with itself but not with SELECT, so concurrent
 // rebuilds (including from another process) queue instead of colliding on the
 // primary key. Errors bubble so the caller decides how loudly to fail.
+// publisher_estimates is rolled up from the fresh rows in the same transaction.
 export const rebuildGameEstimates = async (selectSql: string): Promise<void> => {
 	const client = await backgroundPool.connect();
 
 	try {
 		await client.query("BEGIN");
-		await client.query("LOCK TABLE game_estimates IN SHARE ROW EXCLUSIVE MODE;");
+		await client.query(
+			"LOCK TABLE game_estimates, publisher_estimates IN SHARE ROW EXCLUSIVE MODE;",
+		);
 		await client.query("DELETE FROM game_estimates;");
 		await client.query(
 			`INSERT INTO game_estimates (
@@ -243,6 +266,8 @@ export const rebuildGameEstimates = async (selectSql: string): Promise<void> => 
 			)
 			${selectSql};`,
 		);
+		await client.query("DELETE FROM publisher_estimates;");
+		await client.query(PUBLISHER_ESTIMATES_INSERT_SQL);
 		await client.query("COMMIT");
 	} catch (error) {
 		await client.query("ROLLBACK");

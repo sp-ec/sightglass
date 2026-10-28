@@ -694,7 +694,8 @@ const runGameEstimatesRebuild = async (): Promise<void> => {
 	}
 };
 
-// Rebuilds game_estimates from the current settings. A call made while a
+// Rebuilds game_estimates, and publisher_estimates from it, using the current
+// settings. A call made while a
 // rebuild is running queues one follow-up, which reads settings only when it
 // starts, so the latest save always wins and any number of overlapping calls
 // cost at most two rebuilds. Never rejects: a failure leaves the previous
