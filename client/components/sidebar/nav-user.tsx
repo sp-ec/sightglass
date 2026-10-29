@@ -1,13 +1,11 @@
 "use client";
 
-import { ChevronsUpDown, LogOut, Settings } from "lucide-react";
-import Link from "next/link";
+import { ChevronsUpDown, LogOut } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -62,13 +60,6 @@ export function NavUser() {
 						side={isMobile ? "bottom" : "right"}
 						align="end"
 					>
-						<DropdownMenuItem asChild>
-							<Link href="/settings">
-								<Settings />
-								Settings
-							</Link>
-						</DropdownMenuItem>
-						<DropdownMenuSeparator />
 						<DropdownMenuItem onClick={() => void logout()}>
 							<LogOut />
 							Log out
