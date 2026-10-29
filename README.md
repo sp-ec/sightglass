@@ -1,4 +1,5 @@
 
+
 <div align="center">
 
   <img width="2560" height="1440" alt="SIGHTGLASS LOGO" src="https://github.com/user-attachments/assets/c5a6326b-3cc6-4340-9c7c-1e40c19f0eb9" />
@@ -47,28 +48,11 @@ The official image is available as `spec88/sightglass` on Docker Hub. The `rolli
 
 ## Screenshots
 
-<table>
-  <tr>
-    <td width="50%" align="center">
-      <img src="https://github.com/user-attachments/assets/549f5beb-8bc7-4f36-9a9f-307cdc0b0a06" alt="Game List" width="100%" />
-      <br /><sub><b>Game List</b></sub>
-    </td>
-    <td width="50%" align="center">
-      <img src="https://github.com/user-attachments/assets/265efc04-3a1b-459f-be6c-f19bc80ad041" alt="Chart Creator" width="100%" />
-      <br /><sub><b>Chart Creator</b></sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <img src="https://github.com/user-attachments/assets/da16f157-b649-481c-8d97-d4d0b074ab1c" alt="Game Info (1)" width="100%" />
-      <br /><sub><b>Game Info</b></sub>
-    </td>
-    <td width="50%" align="center">
-      <img src="https://github.com/user-attachments/assets/ba14a266-92b8-4aed-a319-396a20b03148" alt="Game Info (2)" width="100%" />
-      <br /><sub><b>Game Assets</b></sub>
-    </td>
-  </tr>
-</table>
+<img width="1920" height="917" alt="sightglass-1" src="https://github.com/user-attachments/assets/779a5f6f-c42a-4213-b09e-5e8bf8bacda6" />
+<img width="1920" height="917" alt="sightglass-3" src="https://github.com/user-attachments/assets/5b323093-a6ef-4ecb-9ae5-31aea1f6f4dd" />
+<img width="1902" height="915" alt="sightglass-2" src="https://github.com/user-attachments/assets/da9a64cc-3bf7-4fee-87b8-a4c4dfa1fdb4" />
+<img width="1920" height="917" alt="sightglass-4" src="https://github.com/user-attachments/assets/4a99469a-b7f8-4169-ac9b-da7a5f43d088" />
+
 
 ## Disclaimer
 
