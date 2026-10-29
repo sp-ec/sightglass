@@ -18,7 +18,7 @@ function ThemeToggle() {
 		<Button
 			type="button"
 			variant="ghost"
-			size="icon"
+			size="icon-xs"
 			onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
 			aria-label="Toggle dark mode"
 		>
@@ -64,10 +64,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 			<SidebarProvider>
 				<AppSidebar />
 				<main className="mx-auto w-full min-w-0 min-h-screen">
-					<header className="glass sticky top-3 z-10 mx-4 mt-3 flex items-center gap-3 rounded-xl px-3 py-2 md:mx-6">
-						<SidebarTrigger className="size-10 cursor-pointer" />
-						<Separator orientation="vertical" className="my-2" />
-						<h1 className="text-lg font-semibold tracking-tight">
+					<header className="sticky top-0 z-10 flex h-9 items-center gap-2 border-b border-sidebar-border bg-sidebar px-2 backdrop-blur-xl">
+						<SidebarTrigger className="size-7 cursor-pointer" />
+						<Separator orientation="vertical" className="my-2.5" />
+						<h1 className="text-sm font-semibold tracking-tight">
 							{titleForPath(pathname)}
 						</h1>
 						<div className="ml-auto">

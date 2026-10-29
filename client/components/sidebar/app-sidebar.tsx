@@ -90,7 +90,7 @@ export function AppSidebar() {
 	const { user } = useAuth();
 
 	return (
-		<Sidebar variant="floating">
+		<Sidebar variant="sidebar" className="border-sidebar-border">
 			<SidebarHeader>
 				<SidebarMenu>
 					<SidebarMenuItem>
