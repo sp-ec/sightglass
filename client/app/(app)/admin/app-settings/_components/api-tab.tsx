@@ -11,7 +11,10 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { ApiUsageBar } from "@/components/api-usage/api-usage-bar";
+import { useApiUsage } from "@/components/api-usage/use-api-usage";
 import { putJson, readErrorMessage } from "@/lib/api";
 import { apiSchema } from "../app-settings-schema";
 import { useAppSettingsSection } from "../_hooks/use-app-settings-section";
@@ -35,6 +38,7 @@ const toPayload = (value: apiForm) => ({ steamApiKey: value.steamApiKey });
 export function ApiTab({ current, onSaved }: Props) {
 	const [removing, setRemoving] = React.useState(false);
 	const [removeError, setRemoveError] = React.useState<string | null>(null);
+	const { usage, error: usageError } = useApiUsage();
 
 	const initial = current === null ? null : EMPTY_FORM;
 
@@ -112,6 +116,15 @@ export function ApiTab({ current, onSaved }: Props) {
 				</p>
 				{errors.steamApiKey && (
 					<p className="text-xs text-destructive">{errors.steamApiKey}</p>
+				)}
+				<Separator className="my-4" />
+				<p className="text-sm font-medium">Daily usage</p>
+				{usageError ? (
+					<p role="alert" className="text-sm text-destructive">
+						{usageError}
+					</p>
+				) : (
+					<ApiUsageBar usage={usage} />
 				)}
 			</CardContent>
 			<CardFooter className="flex items-center gap-3">

@@ -6,6 +6,7 @@ import appSettingsRoutes from "./modules/appSettings/appSettings.routes";
 import userRoutes from "./modules/users/users.routes";
 import publisherRoutes from "./modules/publishers/publishers.routes";
 import developerRoutes from "./modules/developers/developers.routes";
+import apiUsageRoutes from "./modules/apiUsage/apiUsage.routes";
 import { requireAdmin, requireAuth } from "./modules/auth/auth.middleware";
 
 const apiRoutes = express.Router();
@@ -20,5 +21,6 @@ apiRoutes.use("/publishers", requireAuth, publisherRoutes);
 apiRoutes.use("/developers", requireAuth, developerRoutes);
 apiRoutes.use("/app-settings", requireAuth, requireAdmin, appSettingsRoutes);
 apiRoutes.use("/users", requireAuth, requireAdmin, userRoutes);
+apiRoutes.use("/api-usage", requireAuth, requireAdmin, apiUsageRoutes);
 
 export default apiRoutes;

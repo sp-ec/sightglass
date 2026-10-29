@@ -15,16 +15,28 @@ import {
 	getSteamApiKey,
 	refreshGameEstimates,
 } from "@/modules/appSettings/appSettings.service";
+import {
+	getApiUsage,
+	isApiLimitReached,
+	reserveSteamApiRequest,
+} from "@/modules/apiUsage/apiUsage.service";
+import { ApiLimitReachedError } from "@/modules/apiUsage/apiUsage.types";
 
 const BATCH_SIZE = 1000;
+const LIMIT_REACHED_MESSAGE =
+	"The daily Steam API limit has been reached. Sync can resume after the limit resets.";
 
 let syncPromise: Promise<void> | null = null;
 let syncStopRequested = false;
+let lastSyncError: string | null = null;
 
 let totalFetched = 0;
 let totalGames = 0;
 
 const fetchSteamGames = async (query: ReturnType<typeof fetchGamesQuery>) => {
+	// Throws once the daily limit is hit, which ends runGameSync's loop
+	await reserveSteamApiRequest();
+
 	const response = await fetch(
 		"https://api.steampowered.com/IStoreQueryService/Query/v1/?input_json=" +
 			encodeURIComponent(JSON.stringify(query)),
@@ -85,14 +97,24 @@ export const startGameSync = async (startAt = 0): Promise<SyncOutcome> => {
 		};
 	}
 
+	if (await isApiLimitReached()) {
+		return { status: "limit_reached", message: LIMIT_REACHED_MESSAGE };
+	}
+
 	//sync tags/categories first
 	await syncTags();
 	await syncCategories();
 
 	syncStopRequested = false;
+	lastSyncError = null;
 	totalFetched = startAt;
 	syncPromise = runGameSync(startAt, apiKey)
 		.catch((error) => {
+			if (error instanceof ApiLimitReachedError) {
+				lastSyncError = LIMIT_REACHED_MESSAGE;
+				return;
+			}
+			lastSyncError = "The last sync failed. Check the server logs for details.";
 			console.error("Game sync failed:", error);
 		})
 		// Also after a stop or failure: every batch saved so far changed reviews
@@ -129,6 +151,8 @@ export const getSyncStatus = async () => {
 		total: total,
 		oldestGameDate: oldestGame?.last_updated,
 		newestGame: newestGame,
+		lastError: lastSyncError,
+		apiUsage: await getApiUsage(),
 	};
 };
 

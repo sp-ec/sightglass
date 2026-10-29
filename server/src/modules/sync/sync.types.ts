@@ -31,9 +31,30 @@ export type SyncStatus = {
 // Discriminated so the controller can answer 400 for a misconfigured app
 // without the service throwing
 export type SyncOutcome = {
-    status: "started" | "running" | "stopped" | "idle" | "misconfigured";
+    status:
+        | "started"
+        | "running"
+        | "stopped"
+        | "idle"
+        | "misconfigured"
+        | "limit_reached";
     message: string;
 };
+
+// A null interval means automatic sync is off
+export type autoSyncSettings = {
+    intervalHours: number | null;
+    nextAt: Date | null;
+};
+
+export type autoSyncView = {
+    intervalHours: number | null;
+    nextSyncAt: string | null;
+};
+
+export type autoSyncOutcome =
+    | { status: "ok"; autoSync: autoSyncView }
+    | { status: "invalid"; message: string };
 
 // Fixed pairs, so no caller-supplied name reaches the merge SQL
 export type companyTable =

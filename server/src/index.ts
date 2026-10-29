@@ -10,6 +10,7 @@ import {
 	refreshGameEstimates,
 } from "./modules/appSettings/appSettings.service";
 import { mergeDuplicateCompanyNames } from "./modules/sync/sync.service";
+import { startSyncScheduler } from "./modules/sync/syncSchedule.service";
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -36,6 +37,7 @@ const startServer = async () => {
 	// Catches up on anything the table missed while the server was down, such
 	// as a settings change from another instance or a release-date drift
 	await refreshGameEstimates();
+	await startSyncScheduler();
 
 	app.listen(port, () => {
 		console.log(`Server running on port ${port}`);

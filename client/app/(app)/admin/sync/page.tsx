@@ -8,6 +8,8 @@ import { LucideRefreshCcw, Square } from "lucide-react";
 import { formatAssetUrl } from "@/lib/utils";
 import { readErrorMessage } from "@/lib/api";
 
+import { ApiUsageBar } from "@/components/api-usage/api-usage-bar";
+import type { apiUsage } from "@/components/api-usage/api-usage-types";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Progress } from "@/components/ui/progress";
@@ -21,6 +23,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { AutoSyncCard } from "./_components/auto-sync-card";
+import type { autoSyncView } from "./sync-types";
 
 type SyncStatus = "running" | "stopped" | null;
 
@@ -40,6 +44,10 @@ type SyncInfo = {
 	total: number;
 	oldestGameDate: Date | null;
 	newestGame: NewestGame | null;
+	// Why the last sync ended early, e.g. the daily API limit
+	lastError: string | null;
+	apiUsage: apiUsage;
+	autoSync: autoSyncView;
 };
 
 const fetchSyncStatus = async (): Promise<SyncInfo> => {
@@ -88,6 +96,15 @@ export default function SyncPage() {
 		return "Start Sync";
 	}, [syncInfo]);
 
+	// The countdown restarts from the saved response rather than the next poll
+	const applyAutoSync = (autoSync: autoSyncView) => {
+		setSyncInfo((current) => (current ? { ...current, autoSync } : current));
+	};
+
+	const errorMessage = actionError ?? syncInfo?.lastError ?? null;
+
+	const newestGame = syncInfo?.newestGame ?? null;
+
 	const showCompleted =
 		syncInfo?.status === "stopped" &&
 		syncInfo.fetched > 0 &&
@@ -135,139 +152,161 @@ export default function SyncPage() {
 		}
 	};
 
+	// Shown beside the sync controls; once a sync completes the banner replaces it
+	const showNewestGame = !showCompleted && newestGame !== null;
+
 	return (
-		<div className="space-y-16 flex flex-col place-items-center justify-center">
-			{actionError && (
+		<div className="mx-auto w-full max-w-6xl space-y-6">
+			{errorMessage && (
 				<div
 					role="alert"
-					className="w-full max-w-lg rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive backdrop-blur-md"
+					className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive backdrop-blur-md"
 				>
-					{actionError}
+					{errorMessage}
 				</div>
 			)}
-			{showCompleted ? (
-				<div className="rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-700 backdrop-blur-md dark:text-green-300 max-w-lg w-full">
+			{showCompleted && (
+				<div className="rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-sm text-green-700 backdrop-blur-md dark:text-green-300">
 					Sync Completed at{" "}
-					{syncInfo?.newestGame
-						? new Date(syncInfo.newestGame.last_updated).toLocaleString()
+					{newestGame
+						? new Date(newestGame.last_updated).toLocaleString()
 						: null}
 				</div>
-			) : (
-				<>
-					{syncInfo?.newestGame && (
-						<Card className="w-full max-w-lg">
-							<CardContent>
-								<Link
-									href={`https://store.steampowered.com/${syncInfo?.newestGame?.store_url_path}`}
-									rel="noopener noreferrer"
-									target="_blank"
-									className="block"
-								>
-									<Image
-										src={`${formatAssetUrl(syncInfo?.newestGame?.asset_url_format || "", syncInfo?.newestGame?.main_capsule || "")}`}
-										alt=""
-										width={500}
-										height={300}
-										className="rounded-md"
-									/>
-								</Link>
-							</CardContent>
-							<CardFooter>
-								<p className="overflow-hidden text-ellipsis whitespace-nowrap">
-									{syncInfo?.newestGame?.name}{" "}
-									<span className="text-muted-foreground">
-										({syncInfo?.newestGame?.app_id})
-									</span>
-								</p>
-							</CardFooter>
-						</Card>
-					)}
-				</>
 			)}
 
-			<Card className="w-full max-w-lg">
-				<CardHeader>
-					<CardTitle>Sync Steam Data</CardTitle>
-					<CardDescription>
-						Fetch games, reviews, tags and other data from Steam.
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					{syncInfo?.total == 0 ? (
-						<p>Games never synced, please start a sync to fetch game data.</p>
-					) : (
-						<>
-							<Field className="w-full">
-								<FieldLabel htmlFor="sync-progress">
-									<span>
-										{syncInfo ? (
-											<span className="text-sm text-muted-foreground">
-												{Intl.NumberFormat("en-US").format(syncInfo.fetched)} of{" "}
-												{Intl.NumberFormat("en-US").format(syncInfo.total)}{" "}
-												games synced
-											</span>
-										) : (
-											<span>No sync data available</span>
-										)}
-									</span>
-									<span className="ml-auto">
-										{syncInfo ? (
-											<span className="text-sm text-muted-foreground">
-												{Math.round(
-													((syncInfo.fetched || 0) / (syncInfo.total || 1)) *
-														100,
+			<div
+				className={`grid items-start gap-6 ${showNewestGame ? "lg:grid-cols-[3fr_2fr]" : ""}`}
+			>
+				<div
+					className={`grid items-start gap-6 ${showNewestGame ? "" : "lg:grid-cols-2"}`}
+				>
+					<Card className="w-full">
+						<CardHeader>
+							<CardTitle>Sync Steam Data</CardTitle>
+							<CardDescription>
+								Fetch games, reviews, tags and other data from Steam.
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
+							{syncInfo?.total == 0 ? (
+								<p>Games never synced, please start a sync to fetch game data.</p>
+							) : (
+								<>
+									<Field className="w-full">
+										<FieldLabel htmlFor="sync-progress">
+											<span>
+												{syncInfo ? (
+													<span className="text-sm text-muted-foreground">
+														{Intl.NumberFormat("en-US").format(syncInfo.fetched)} of{" "}
+														{Intl.NumberFormat("en-US").format(syncInfo.total)}{" "}
+														games synced
+													</span>
+												) : (
+													<span>No sync data available</span>
 												)}
-												%
 											</span>
-										) : null}
-									</span>
-								</FieldLabel>
-								<Progress
-									value={
-										((syncInfo?.fetched || 0) / (syncInfo?.total || 1)) * 100
-									}
-									id="sync-progress"
-								/>
-							</Field>
-							<div className="w-full space-y-2 mt-4 flex flex-col place-items-end text-xs text-muted-foreground opacity-50">
-								{syncInfo?.oldestGameDate && (
-									<p>
-										Oldest fetched game:{" "}
-										{new Date(syncInfo.oldestGameDate).toLocaleString()}
-									</p>
+											<span className="ml-auto">
+												{syncInfo ? (
+													<span className="text-sm text-muted-foreground">
+														{Math.round(
+															((syncInfo.fetched || 0) / (syncInfo.total || 1)) *
+																100,
+														)}
+														%
+													</span>
+												) : null}
+											</span>
+										</FieldLabel>
+										<Progress
+											value={
+												((syncInfo?.fetched || 0) / (syncInfo?.total || 1)) * 100
+											}
+											id="sync-progress"
+										/>
+									</Field>
+									<div className="w-full space-y-2 mt-4 flex flex-col place-items-end text-xs text-muted-foreground opacity-50">
+										{syncInfo?.oldestGameDate && (
+											<p>
+												Oldest fetched game:{" "}
+												{new Date(syncInfo.oldestGameDate).toLocaleString()}
+											</p>
+										)}
+										{syncInfo?.newestGame && (
+											<p>
+												Newest fetched game:{" "}
+												{new Date(
+													syncInfo.newestGame.last_updated,
+												).toLocaleString()}
+											</p>
+										)}
+									</div>
+								</>
+							)}
+							<Separator className="my-4" />
+							<ApiUsageBar usage={syncInfo?.apiUsage ?? null} />
+						</CardContent>
+						<CardFooter>
+							<Button
+								size="lg"
+								onClick={() => void handleSyncAction()}
+								disabled={isSubmitting}
+								variant={syncInfo?.status === "running" ? "destructive" : "default"}
+								className="w-full"
+							>
+								{syncInfo?.status === "running" ? (
+									<Square className="size-4" />
+								) : (
+									<LucideRefreshCcw
+										className={`size-4 ${isSubmitting ? "animate-spin" : ""}`}
+									/>
 								)}
-								{syncInfo?.newestGame && (
-									<p>
-										Newest fetched game:{" "}
-										{new Date(
-											syncInfo.newestGame.last_updated,
-										).toLocaleString()}
-									</p>
-								)}
-							</div>
-						</>
-					)}
-				</CardContent>
-				<CardFooter>
-					<Button
-						size="lg"
-						onClick={() => void handleSyncAction()}
-						disabled={isSubmitting}
-						variant={syncInfo?.status === "running" ? "destructive" : "default"}
-						className="w-full"
-					>
-						{syncInfo?.status === "running" ? (
-							<Square className="size-4" />
-						) : (
-							<LucideRefreshCcw
-								className={`size-4 ${isSubmitting ? "animate-spin" : ""}`}
-							/>
-						)}
 
-						{isSubmitting ? "Working..." : buttonLabel}
-					</Button>
-				</CardFooter>
-			</Card>
+								{isSubmitting ? "Working..." : buttonLabel}
+							</Button>
+						</CardFooter>
+					</Card>
+
+					<AutoSyncCard
+						current={syncInfo?.autoSync ?? null}
+						onSaved={applyAutoSync}
+					/>
+				</div>
+
+				{showNewestGame && newestGame && (
+					<Card className="w-full">
+						<CardHeader>
+							<CardDescription>Most recently synced</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<Link
+								href={`https://store.steampowered.com/${newestGame.store_url_path}`}
+								rel="noopener noreferrer"
+								target="_blank"
+								className="block"
+							>
+								<Image
+									src={formatAssetUrl(
+										newestGame.asset_url_format || "",
+										newestGame.main_capsule || "",
+									)}
+									alt=""
+									width={616}
+									height={353}
+									className="h-auto w-full rounded-md"
+								/>
+							</Link>
+						</CardContent>
+						<CardFooter>
+							<p className="overflow-hidden text-ellipsis whitespace-nowrap">
+								{newestGame.name}{" "}
+								<span className="text-muted-foreground">
+									({newestGame.app_id})
+								</span>
+							</p>
+						</CardFooter>
+					</Card>
+				)}
+			</div>
 		</div>
 	);
 }

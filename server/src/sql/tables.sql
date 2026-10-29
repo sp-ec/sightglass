@@ -267,6 +267,10 @@ CREATE TABLE IF NOT EXISTS app_settings (
     realized_price_refund_rate_min DOUBLE PRECISION NOT NULL DEFAULT 0.04,
     realized_price_refund_rate_multiplier DOUBLE PRECISION NOT NULL DEFAULT 0.25,
 
+    -- NULL interval means automatic sync is off
+    auto_sync_interval_hours INTEGER CHECK (auto_sync_interval_hours BETWEEN 1 AND 8760),
+    auto_sync_next_at TIMESTAMPTZ,
+
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     CHECK (realized_price_min_multiplier <= realized_price_starting_multiplier),
@@ -275,6 +279,12 @@ CREATE TABLE IF NOT EXISTS app_settings (
 );
 
 INSERT INTO app_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+
+-- Keyed Steam Web API requests per UTC day, checked against the daily key limit
+CREATE TABLE IF NOT EXISTS steam_api_usage (
+    usage_date DATE PRIMARY KEY,
+    request_count INTEGER NOT NULL DEFAULT 0
+);
 
 -- tag_id as the primary key enforces one multiplier per tag in the database
 CREATE TABLE IF NOT EXISTS estimation_tag_multipliers (
@@ -356,6 +366,9 @@ ON CONFLICT (tag_id) DO NOTHING;
 
 ALTER TABLE developers ADD COLUMN IF NOT EXISTS name_key TEXT;
 ALTER TABLE publishers ADD COLUMN IF NOT EXISTS name_key TEXT;
+ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS auto_sync_interval_hours INTEGER
+    CHECK (auto_sync_interval_hours BETWEEN 1 AND 8760);
+ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS auto_sync_next_at TIMESTAMPTZ;
 
 -- Created here rather than beside the tables so the column exists first
 CREATE UNIQUE INDEX IF NOT EXISTS developers_name_key_idx ON developers (name_key);
